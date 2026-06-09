@@ -1,0 +1,58 @@
+=== RETAIN 정책 전체 (각 테이블 보존시간) ===
+    "cluster_health_history":  int(os.environ.get("RETAIN_CLUSTER_HOURS", "168")),  # 7일
+    "vm_density_history":      int(os.environ.get("RETAIN_DENSITY_HOURS", "168")),  # 7일
+    "infra_snapshot":          int(os.environ.get("RETAIN_INFRA_HOURS",   "72")),   # 3일
+    "prometheus_ping_log":     int(os.environ.get("RETAIN_PING_HOURS",    "72")),   # 3일
+    "alert_history":           int(os.environ.get("RETAIN_ALERT_HOURS",   "720")),  # 30일
+    "route_probe_history":     int(os.environ.get("RETAIN_ROUTE_HOURS",   "72")),   # 3일
+}
+CYCLE_LOG_KEEP: Final[int]     = 100  # 최근 N개 폴링 사이클 보존
+
+HEALTH_JOB_CANDIDATES: Final[Dict[str, List[str]]] = {
+    "api_server": ["apiserver", "kube-apiserver", "openshift-apiserver"],
+    "etcd":       ["etcd", "etcd-metrics"],
+    "coredns":    ["dns-default", "coredns", "kube-dns"],
+    "router":     ["router-internal-default", "openshift-router"],
+    "registry":   ["openshift-image-registry", "image-registry"],
+    "scheduler":  ["scheduler", "kube-scheduler"],
+
+=== datetime.now() 쓰는 테이블별 INSERT — 어떤 테이블에 naive 저장하는지 ===
+500:                "INSERT INTO cluster_health_history "
+503:                (now,
+513:                    "INSERT INTO node_metrics_history (timestamp,node_name,cpu_pct,mem_pct,status,net_rx_bps,net_tx_bps,disk_pct,imagefs_pct) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+514:                    (now, n.name, n.cpu_pct_realtime, n.memory_pct_realtime, n.status,
+524:                    "INSERT INTO vm_density_history (timestamp,node_name,vm_count) VALUES (%s,%s,%s)",
+525:                    (now, node_name, cnt),
+530:                    "INSERT INTO vm_metrics_history (timestamp,vm_name,namespace,cpu_pct,mem_pct,status) VALUES (%s,%s,%s,%s,%s,%s)",
+531:                    (now, vm.name, vm.namespace, vm.cpu_usage_pct, vm.memory_usage_pct, vm.status_group),
+536:                "INSERT INTO infra_snapshot (timestamp,router_req_rate,router_5xx_rate,sched_pending,ovn_ports,reg_req_rate) "
+538:                (now, im.router_req_rate, im.router_5xx_rate,
+565:                c = self._exec(conn, "INSERT INTO polling_cycles (started_at, status) VALUES (%s, 'running') RETURNING id", (now,))
+570:                c.execute("INSERT INTO polling_cycles (started_at, status) VALUES (%s, 'running')", (now,))
+580:                    (now, duration_ms, status, cycle_id),
+586:                            "INSERT INTO metric_collection_log (cycle_id,metric_name,status,item_count,duration_ms,error_msg) "
+599:                "INSERT INTO prometheus_ping_log (timestamp,strategy,host,latency_ms,is_reachable) VALUES (%s,%s,%s,%s,%s)",
+600:                (now, strategy, host, latency_ms, int(reachable)),
+644:                    "INSERT INTO route_probe_history "
+647:                    (now, p.get("name",""), p.get("namespace",""), p.get("host",""),
+701:                    "INSERT INTO alert_history "
+704:                    (now, a.get("alertname",""), a.get("severity","none"),
+737:                "INSERT INTO incidents (started_at,title,severity,status,affected,description) "
+739:                (now, title, severity, "active", affected, desc)
+752:                (now, title)
+
+=== 시간 컬럼이 있는 테이블 타입 전수 (text timestamp 쓰는 테이블) ===
+       table_name       | column_name | data_type
+------------------------+-------------+-----------
+ alert_history          | timestamp   | text
+ alerts                 | timestamp   | text
+ cluster_health_history | timestamp   | text
+ infra_snapshot         | timestamp   | text
+ metric_collection_log  | timestamp   | text
+ node_metrics_history   | timestamp   | text
+ prometheus_ping_log    | timestamp   | text
+ route_probe_history    | timestamp   | text
+ route_probes           | timestamp   | text
+ vm_density_history     | timestamp   | text
+ vm_metrics_history     | timestamp   | text
+(11 rows)
