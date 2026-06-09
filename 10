@@ -1,0 +1,89 @@
+package_finder.py 설명
+path : /usr/bin/package_finder.py
+ 
+# ls -al /usr/bin/package_finder.py
+-rwxr-xr-x 1 root root 8864 Apr  2 14:58 /usr/bin/package_finder.py
+ 
+# package_finder.py -h
+usage: package_finder.py [-h] -l LIST_FILE -s SRC_DIR [-a ARCH]
+ 
+파일에 기록된 패키지 패턴을 찾아 /tmp/ 날짜 디렉토리에 복사합니다.
+ 
+optional arguments:
+  -h, --help            show this help message and exit
+  -l LIST_FILE, --list-file LIST_FILE
+                        복사할 패키지 패턴이 한 줄씩 기록된 파일 (예: packages.txt)
+  -s SRC_DIR, --src-dir SRC_DIR
+                        원본 파일들이 위치한 디렉토리 경로
+  -a ARCH, --arch ARCH  패키지 아키텍처 지정 (예: x86_64, i686). 생략 시 모든 아키텍처 검색
+Source file List 생성
+# head filelist.txt
+poppler-20.11.0-13.el8_10
+poppler-glib-20.11.0-13.el8_10
+poppler-utils-20.11.0-13.el8_10
+cups-2.2.6-66.el8_10
+cups-libs-2.2.6-66.el8_10
+libpq-13.23-1.el8_10
+gnupg2-2.2.20-4.el8_10
+gnupg2-smime-2.2.20-4.el8_10
+net-snmp-5.8-33.el8_10
+net-snmp-agent-libs-5.8-33.el8_10
+package_finder.py 실행
+# package_finder.py -l 0402_1424.txt -s /var/www/html/
+[정보] 목적지 디렉토리가 생성되었습니다: /tmp/0402-142621
+[정보] 총 125개의 패키지 패턴을 검색합니다...
+ 
+--- 패키지 복사 작업 시작 (0402-142621) ---
+원본 디렉토리: /var/www/html/
+목적지 디렉토리: /tmp/0402-142621
+지정된 아키텍처: 없음 (모든 파일 검색)
+ 
+[복사] audit-libs-3.0-0.10.20180831git0047a6c.el8.x86_64.rpm -> /tmp/0402-142621
+[복사] basesystem-11-5.el8.noarch.rpm -> /tmp/0402-142621
+[복사] bpftool-4.18.0-80.el8.x86_64.rpm -> /tmp/0402-142621
+[복사] brotli-1.0.6-1.el8.i686.rpm -> /tmp/0402-142621
+[복사] ca-certificates-2018.2.24-6.el8.noarch.rpm -> /tmp/0402-142621
+[복사] chkconfig-1.11-1.el8.x86_64.rpm -> /tmp/0402-142621
+[복사] containernetworking-plugins-0.7.4-3.git9ebe139.module+el8+2769+577ad176.x86_64.rpm -> /tmp/0402-142621
+- cut -
+[복사] grafana-pcp-1.0.5-3.el8.noarch.rpm -> /tmp/0402-142621
+[실패] 매칭되는 파일을 찾을 수 없음: grafana-selinux-9.2.10-15.el8.x86_64
+[복사] grep-3.1-6.el8.x86_64.rpm -> /tmp/0402-142621
+- cut -
+[복사] which-2.21-10.el8.x86_64.rpm -> /tmp/0402-142621
+ 
+==============================
+         작업 결과 요약      
+==============================
+  - 총 요청 패키지: 125개
+  - 복사 성공 패키지: 124개
+  - 복사 실패 패키지: 1개
+==============================
+ 
+[✅ 성공한 패키지 리스트]
+  - audit-libs-3.0-0.10.20180831git0047a6c.el8.x86_64
+  - basesystem-11-5.el8.noarch
+  - bpftool-4.18.0-80.el8.x86_64
+- cut -
+  - vim-common-8.0.1763-10.el8.x86_64
+  - vim-enhanced-8.0.1763-10.el8.x86_64
+  - vim-minimal-8.0.1763-10.el8.x86_64
+  - which-2.21-10.el8.x86_64
+ 
+[❌ 실패한 패키지 리스트]
+  - grafana-selinux-9.2.10-15.el8.x86_64
+[정보] 복사된 파일 목록 및 md5sum 정보가 담긴 README.txt가 생성되었습니다.
+ 
+[완료] 복사 작업이 끝났습니다.
+[정보] 상세 작업 로그가 생성되었습니다: /tmp/0402-142621/copy_result.log
+파일 리스트 생성 확인
+# ls -al /tmp/0402-142621/
+total 455280
+drwxr-xr-x   2 root root     8192 Apr  2 14:34 .
+drwxrwxrwt. 18 root root     4096 Apr  2 15:00 ..
+-rw-r--r--   1 root root   118824 Jan 27  2021 audit-libs-3.0-0.10.20180831git0047a6c.el8.x86_64.rpm
+-rw-r--r--   1 root root    10756 Jan 27  2021 basesystem-11-5.el8.noarch.rpm
+-rw-r--r--   1 root root   950868 Jan 27  2021 bpftool-4.18.0-80.el8.x86_64.rpm
+- cut -
+-rw-r--r--   1 root root    13356 Apr  2 14:26 copy_result.log   <== 실행 과정 로그 파일
+-rw-r--r--   1 root root     8862 Apr  2 14:26 README.txt <== 실행 완료 후 md5sum 결과 파일
