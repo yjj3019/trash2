@@ -1,0 +1,78 @@
+1. 주요 신규 기능 및 기술적 의미 (Major New Features and Technical Implications)
+RHEL 9.7은 **보안 강화(특히 양자 컴퓨팅 대비)**와 현대적 시스템 배포 모델(컨테이너 및 불변성 이미지) 측면에서 핵심적인 발전을 이루었습니다.
+
+1.1. 포스트 퀀텀 암호화 (Post-Quantum Cryptography, PQC) 지원 확대
+PQ 하위 정책 도입: 시스템 전반의 암호화 정책(crypto-policies)에 새로운 PQ 하위 정책이 추가되어 PQC 알고리즘을 활성화할 수 있습니다. 이 정책을 적용하면 하이브리드 ML-KEM 및 순수 ML-DSA 알고리즘이 LEGACY, DEFAULT, FUTURE, FIPS 정책에서 가장 높은 우선순위로 활성화됩니다.
+기술적 의미: 이는 미래의 양자 컴퓨팅 위협에 대비하여 선제적으로 양자 내성(quantum-resistant) 통신 및 데이터 무결성 기반을 구축합니다. 시스템 관리자는 update-crypto-policies --set DEFAULT:PQ 명령을 통해 이를 활성화할 수 있습니다.
+OpenSSL 3.5 업데이트: OpenSSL이 버전 3.5로 리베이스되었으며, ML-KEM, ML-DSA, SLH-DSA PQC 알고리즘 지원이 추가되었습니다. 특히 하이브리드 ML-KEM 알고리즘은 FIPS 모드에서도 지원됩니다.
+RPMv6 서명 확인: DNF는 multisig 플러그인을 통해 ML-DSA와 같은 양자 안전 알고리즘을 기반으로 하는 RPMv6 서명을 확인할 수 있습니다.
+운영 영향: 소프트웨어 패키지 공급망의 무결성을 양자 보안 시대에 맞게 강화하며, 보안이 중요한 환경에서 패키지 설치 신뢰도를 높입니다.
+1.2. 불변성(Immutable) 시스템 이미지 배포 및 관리
+bootc-image-builder GA: bootc-image-builder 툴이 일반적으로 사용 가능(GA)해졌습니다. 이 툴은 bootc 컨테이너 이미지를 QCOW2, AMI, ISO와 같은 다양한 디스크 이미지 형식으로 쉽게 변환하고 배포할 수 있도록 지원합니다.
+기술적 의미: 컨테이너 이미지 기반의 운영체제 배포 워크플로우를 간소화하여 엣지 및 클라우드 환경에서 시스템의 일관성과 신뢰성을 크게 향상시킵니다.
+composefs 지원: composefs 읽기 전용 파일 시스템이 도입되어 bootc/ostree 및 podman 프로젝트에서 이미지 간 파일 데이터 공유 및 런타임 이미지 검증을 지원합니다.
+WSL2 이미지 생성 지원: RHEL 이미지 빌더가 Windows Subsystem for Linux (WSL2) 이미지를 생성하는 기능을 지원합니다.
+FIPS 설치 단순화: DVD 및 Boot ISO 설치 시, fips=1 커널 부트 옵션을 설정하는 새로운 부트 메뉴 항목이 추가되어 FIPS 140 준수 시스템 설치 프로세스가 단순화되었습니다.
+2. 업데이트된 주요 구성 요소 (Updated Key Components)
+2.1. 개발 플랫폼 및 툴체인 업데이트
+RHEL 9.7은 개발자에게 최신 언어 표준 및 성능 향상을 제공하는 주요 컴파일러 및 툴셋 업데이트를 포함합니다.
+
+.NET	10.0 (LTS)	장기 지원 버전이 도입되어 JIT 인라이닝, 메서드 가상화 제거 등 향상된 런타임 성능과 새로운 암호화/컬렉션 API를 활용할 수 있습니다.
+Rust Toolset	1.88.0	Rust 2024 Edition이 안정화되어 let chains, 비동기 클로저(async closures), 트레잇 업캐스팅(Trait upcasting) 등 언어 유연성과 가독성이 향상되었습니다.
+GCC Toolset	15 (GCC 15.1)	C++ 표준 라이브러리에서 런타임 어설션이 기본으로 활성화되어 (비최적화 빌드 기준) 프로그램 신뢰성이 향상되었습니다.
+LLVM Toolset	20.1.8 (LLVM 20)	코어 라이브러리 및 도구(Clang, flang)가 업데이트되어 코드 생성 최적화 및 진단 기능이 개선되었습니다.
+Go Toolset	1.24	런타임 성능 개선과 새로운 표준 라이브러리 패키지(약한 포인터, 암호화)가 추가되었습니다.
+Valkey	8	Redis의 대안으로 도입된 키-값 저장소로, 지능형 멀티코어 활용 및 비동기 I/O 스레딩을 통해 성능을 크게 향상시킵니다.
+2.2. 시스템 관리 및 관측 가능성(Observability) 도구
+에너지 원격 측정: AMD CPU에서 코어 수준의 전력 소비를 모니터링하기 위한 코어별 RAPL 에너지 이벤트 카운터 지원이 추가되었습니다.
+운영 영향: 세밀한 성능 분석 및 전력 최적화 작업에 필수적인 데이터를 제공합니다.
+디버깅 유연성: python-drgn이 debuginfod를 지원하고 디버깅 심볼 없이도 커널 스택 언와인딩 기능을 제공하여, 커널 충돌 분석 및 디버깅 능력이 향상되었습니다.
+웹 콘솔 (Cockpit): Cockpit 패키지가 버전 344로 업그레이드되었으며, PatternFly 6 디자인 시스템을 기반으로 사용자 인터페이스(UI)가 개선되었습니다.
+Rsyslog 개선: imuxsock 모듈에 ratelimit.discarded 카운터가 추가되어 속도 제한으로 인해 삭제된 메시지 수를 추적할 수 있게 되었습니다.
+valgrind 개선: Valgrind 3.25.1로 업그레이드되었으며, 특히 zstd 압축 디버그 섹션 지원 및 유연한 설치를 위한 서브패키지 분할이 이루어졌습니다.
+2.3. 네트워킹 및 고가용성 관리
+Nmstate를 통한 PCI 주소 기반 설정: Nmstate를 사용하여 장치 이름 대신 PCI 주소를 기반으로 네트워크 인터페이스 설정을 할당할 수 있습니다.
+운영 영향: 클러스터 내 노드 전반에서 네트워크 구성 자동화 및 일관성을 보장합니다.
+Nmstate FEC 지원: Nmstate가 RS-FEC, Base-R, Disabled와 같은 FEC (Forward Error Correction) 모드 설정을 지원하여 데이터 전송 신뢰성을 개선할 수 있습니다.
+iproute TSN 지원: iproute 패키지가 6.14.0으로 업데이트되어 tc 유틸리티에서 IEEE 802.1Q-2018 표준에 명시된 Time-Sensitive Networking (TSN)의 Hold/Release 메커니즘을 지원합니다.
+클러스터링 확장: Nutanix AHV 환경을 위한 새로운 fence_nutanix 펜스 에이전트와 Podman 컨테이너에서 실행되는 etcd를 관리하는 podman-etcd 리소스 에이전트가 추가되었습니다.
+3. 주요 수정 사항 및 안정성 개선 (Critical Fixes and Stability Improvements)
+RHEL 9.7에는 시스템 안정성과 운영 일관성을 향상시키는 중요한 버그 수정 사항이 포함되었습니다.
+
+fapolicyd 충돌 방지: fapolicyd가 enforcing 모드일 때 RPM 데이터베이스를 반복적으로 업데이트하면 발생하던 버스 오류(SIGBUS)로 인한 충돌 문제가 해결되었습니다.
+SSH 스크립트 호환성: SSH 연결 실패 시 표시되던 장황한 도움말 메시지가 사용자 스크립트 및 자동화를 손상시키는 문제가 해결되었습니다. 이제 이 메시지는 debug1 이상의 로그 레벨에서만 표시됩니다.
+SR-IOV 안정성: IOMMU가 활성화된 시스템에서 페이지 풀을 사용하는 네트워크 인터페이스의 SR-IOV 가상 기능(VF) 수를 런타임에 줄일 때 발생하던 커널 패닉 문제가 해결되었습니다.
+RPM 무결성 확인: RPM 설치 시 패키지 전체의 SHA256 및 SHA512 다이제스트가 기록되어, 설치된 패키지 세트가 알려진 .rpm 파일 세트와 비트 단위로 일치하는지 사후에 확인할 수 있습니다.
+glibc 교착 상태 방지: 다중 스레드 애플리케이션에서 popen과 fork를 병렬로 호출할 때 발생할 수 있는 교착 상태 및 충돌 가능성 문제가 동적 링커의 일관성 개선을 통해 완화되었습니다.
+RHEL 시스템 역할 (Postfix): postfix RHEL 시스템 역할이 호스트에서 IPv6가 비활성화된 경우 이를 자동으로 감지하고 inet_protocols = ipv4를 설정하여 역할 실패를 방지하도록 수정되었습니다.
+4. 지원 중단된 기능 및 운영 고려 사항 (Deprecated Features and Operational Considerations)
+시스템 관리자 및 개발자는 향후 RHEL 메이저 릴리스(RHEL 10)로의 원활한 전환을 위해 다음 지원 중단 목록을 면밀히 검토하고 대체 방안으로 마이그레이션을 계획해야 합니다.
+
+보안	fips-mode-setup 도구	설치 시 fips=1 커널 옵션 또는 RHEL 이미지 빌더 사용.	FIPS 모드 활성화 자동화 스크립트 수정 필요.
+보안	libgcrypt 암호화 라이브러리	RHEL 핵심 암호화 구성 요소에 나열된 라이브러리 사용.	이 라이브러리에 의존하는 애플리케이션의 마이그레이션 필요.
+네트워킹	네트워크 팀(Teaming) 기능 및 teamd	본딩(Bonding) 사용.	기존 팀 구성을 본딩으로 전환해야 함.
+네트워킹	NetworkManager ifcfg 형식	keyfile 형식 사용 (기본값).	구성 파일 형식 변경 및 관련 자동화 업데이트 필요.
+네트워킹	ipset 유틸리티	nftables 세트(sets) 기능 사용.	방화벽/네트워크 구성 요소 전환 필요.
+컨테이너	runc 컨테이너 런타임	기본 런타임인 crun 사용.	컨테이너 환경의 성능 및 메모리 효율 개선이 예상됨.
+컨테이너	CNI 네트워크 스택	Netavark 네트워크 스택 사용.	컨테이너 네트워킹 구성 전환 필요.
+시스템	cgroupsv1	cgroups v2 사용 (RHEL 10에서 v1 지원 제거 예정).	시스템 자원 관리 및 서비스 정의 호환성 확인.
+인프라	Redis 키-값 저장소	RHEL 10에서는 Valkey로 대체될 예정.	Grafana, PCP 등 Redis 의존성 서비스의 대체 필요.
+가상화	qcow2-v2 이미지 형식	qcow2-v3 사용.	가상 디스크 이미지 변환 및 생성 워크플로우 업데이트 필요.
+5. 알려진 주요 문제 (Key Known Issues)
+운영 환경 배포 시 안정성을 위해 다음 알려진 문제와 그 해결 방안을 고려해야 합니다.
+
+LUKS 암호화된 파티션에서 kdump 실패: LUKS로 암호화된 파티션에서 메모리가 부족하면 kdump가 실패할 수 있습니다.
+조치 방안: kdumpctl estimate 명령을 사용하여 권장 값을 확인하고 crashkernel 메모리 크기를 적절히 늘려야 합니다.
+ARM 64k 페이지 커널 및 VDO 충돌: vdo 패키지가 설치된 ARM 기반 시스템에서 64k 페이지 크기 커널로 업데이트할 경우, kmod-kvdo 패키지와의 충돌로 인해 업데이트가 실패할 수 있습니다.
+조치 방안: 업데이트를 시도하기 전에 vdo 패키지와 종속성을 제거해야 합니다.
+개인 레지스트리에서 bootc-image-builder 실패: bootc-image-builder를 사용하여 개인 레지스트리에서 기본 디스크 이미지를 빌드할 수 없습니다.
+조치 방안: 개인 레지스트리 이미지를 로컬 컨테이너 저장소로 복사한 다음, --local 인수를 사용하여 빌드를 수행해야 합니다.
+OpenSSL 및 PKCS #11 토큰: OpenSSL이 PKCS #11 토큰의 원시 RSA 또는 RSA-PSS 서명 지원 여부를 감지하지 못하여 TLS 1.3 연결이 실패할 수 있습니다.
+조치 방안: openssl.cnf 파일을 수정하여 TLS 버전을 1.2로 제한하고 지원되는 서명 알고리즘을 명시적으로 설정합니다.
+SEV-SNP 호스트에서 대규모 VM 부팅 실패: AMD Genoa CPU를 사용하는 SEV-SNP (Secure Encrypted Virtualization with Secure Nested Paging) 호스트에서 대규모 가상 머신(VM)이 부팅되지 않고 커널 패닉이 발생할 수 있습니다.
+조치 방안: 이 문제에 대한 명확한 워크어라운드는 현재 제공되지 않으며, 해당 환경에서 대규모 VM을 배포할 때 주의가 필요합니다.
+기술적 통찰: RHEL 9.7의 전략적 방향
+
+RHEL 9.7은 시스템을 **미래 지향적인 보안(PQC)**과 **효율적인 인프라 관리(Image Mode)**로 전환하는 데 중점을 둡니다. 개발자에게는 최신 툴체인(Rust 2024, .NET 10.0)을 제공하여 현대적인 애플리케이션 개발을 지원하고, 시스템 관리자에게는 bootc 및 composefs와 같은 불변성(immutable) 인프라를 구축하는 핵심 도구를 제공합니다.
+
+특히, 네트워킹 구성에서 PCI 주소와 FEC 설정 지원이 추가되고, cgroupsv1, runc, ifcfg 형식과 같은 레거시 기능들의 지원 중단이 명확해짐에 따라, 사용자는 RHEL 10 시대를 대비하여 새로운 모듈형 배포 및 관리 패러다임으로 전환을 가속화해야 합니다. 이는 마치 대형 선박이 엔진(커널)을 최적화하고(RAPL, SHSTK), 항로(네트워크)를 정밀하게 제어하며(Nmstate PCI/FEC), 미래의 항해를 위해 낡은 장비(Deprecated features)를 최신 장비로 교체하는 준비를 완료하는 과정과 같습니다.
