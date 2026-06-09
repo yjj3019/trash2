@@ -1,0 +1,74 @@
+=== 1) datetime import 형태 ===
+28:from datetime import datetime, timezone, timedelta
+544:                    _cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+605:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+619:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+639:        cutoff = (datetime.now() - timedelta(hours=48)).strftime("%Y-%m-%d %H:%M:%S")
+654:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+679:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+696:        cutoff = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+711:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+764:        from datetime import datetime, timedelta
+
+=== 2) get_route_slo cutoff (653~664) ===
+    def get_route_slo(self, hours: int = 24) -> List[Dict]:
+        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+        with self._conn() as conn:
+            rows = self._exec(conn,
+                "SELECT route_name, namespace, host, "
+                "COUNT(*) as total, SUM(is_up) as up_count, "
+                "AVG(latency_ms) as avg_latency, "
+                "MIN(latency_ms) as min_latency, MAX(latency_ms) as max_latency "
+                "FROM route_probe_history WHERE timestamp > %s "
+                "GROUP BY route_name, namespace, host",
+                (cutoff,)
+            ).fetchall()
+
+=== 3) trend cutoff (680~688) ===
+        with self._conn() as conn:
+            rows = self._exec(conn,
+                "SELECT timestamp, latency_ms, is_up, status_code FROM route_probe_history "
+                "WHERE route_name=%s AND timestamp > %s ORDER BY timestamp ASC",
+                (route_name, cutoff)
+            ).fetchall()
+        return {
+            "labels": [r["timestamp"][11:16] for r in rows],
+            "latency": [r["latency_ms"] for r in rows],
+
+=== 4) datetime.now() 쓰는 모든 곳 (KST 전환 대상 전수) ===
+494:        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+544:                    _cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+562:        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+575:        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+596:        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+605:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+619:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+638:        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+639:        cutoff = (datetime.now() - timedelta(hours=48)).strftime("%Y-%m-%d %H:%M:%S")
+654:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+679:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+695:        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+696:        cutoff = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+711:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+735:            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+748:        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+765:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+792:        cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+2208:            self.metrics.last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+2907:        s.last_ping_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+=== 5) Containerfile TZ/tzdata 현황 ===
+
+=== 6) deploy.sh podman run 옵션 (portal 기동부) ===
+53:if [[ "$*" == *"--rebuild"* ]] || ! podman image exists localhost/aibox-portal:v5; then
+55:    echo "🔨 aibox-portal 이미지 빌드 중..."
+57:    podman build -t localhost/aibox-portal:v5 \
+66:podman volume exists aibox-portal-data  || podman volume create aibox-portal-data
+71:podman run -d --name aibox-redis \
+81:podman run -d --name aibox-postgres \
+93:# aibox-portal
+94:echo "🚀 aibox-portal 기동..."
+95:podman rm -f aibox-portal 2>/dev/null || true
+96:podman run -d --name aibox-portal \
+99:    -v aibox-portal-data:/app/data \
+117:    localhost/aibox-portal:v5
