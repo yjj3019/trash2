@@ -1,0 +1,80 @@
+=== fetch_cluster_health의 health 값(api_server/etcd/coredns) 산출 (1622~1700) ===
+        self.metrics.cluster_health.matched_jobs = matched
+
+        # v3 집계 Rule 우선 사용 (단일 쿼리)
+        v3_queries = {
+            "cpu_avg":    "aibox:cluster_node_cpu_avg",
+            "mem_avg":    "aibox:cluster_node_mem_avg",
+            "vm_cpu_avg": "aibox:cluster_vm_cpu_avg",
+            "vm_mem_avg": "aibox:cluster_vm_mem_avg",
+            "vm_cpu_p95": "aibox:cluster_vm_cpu_p95",
+            "vm_mem_p95": "aibox:cluster_vm_mem_p95",
+        }
+        v3_results = {}
+        with ThreadPoolExecutor(max_workers=len(v3_queries)) as ex:
+            futs = {ex.submit(self._query, q): k for k, q in v3_queries.items()}
+            for fut in as_completed(futs):
+                k = futs[fut]
+                try:
+                    r = fut.result()
+                    if r: v3_results[k] = float(r[0]["value"][1])
+                except Exception: pass
+
+        ch = self.metrics.cluster_health
+        ch.cpu_pct = v3_results.get("cpu_avg", 0.0)
+        ch.mem_pct = v3_results.get("mem_avg", 0.0)
+        ch.vm_cpu_avg = v3_results.get("vm_cpu_avg", 0.0)
+        ch.vm_mem_avg = v3_results.get("vm_mem_avg", 0.0)
+        ch.vm_cpu_p95 = v3_results.get("vm_cpu_p95", 0.0)
+        ch.vm_mem_p95 = v3_results.get("vm_mem_p95", 0.0)
+
+        # 기존 개별 서비스 헬스 (API/etcd/coredns/router/scheduler)
+        svc_queries: Dict[str, str] = {}
+        for cat, key in [("api_server", "api"), ("etcd", "etcd"),
+                         ("coredns", "dns"), ("router", "route"),
+                         ("scheduler", "scheduler")]:
+            job = matched.get(cat)
+            if job:
+                svc_queries[cat] = f'up{{job="{job}"}}'
+        if svc_queries:
+            with ThreadPoolExecutor(max_workers=len(svc_queries)) as ex:
+                futs = {ex.submit(self._query, q): k for k, q in svc_queries.items()}
+                for fut in as_completed(futs):
+                    k = futs[fut]
+                    try:
+                        r = fut.result()
+                        val = round(sum(float(i["value"][1]) for i in r) /
+                                    max(len(r), 1) * 100, 1) if r else None
+                        setattr(ch, k, val)
+                    except Exception: pass
+
+        # etcd leader 확인 — has_leader(모든 멤버가 리더 인식) 기반.
+        # is_leader는 멤버당 0/1이라 instant query 깜빡임에 취약 → has_leader min으로 판정.
+        # EMPTY 순간엔 직전 유효값 유지(깜빡임 방지).
+        try:
+            etcd_r = self._query('min(etcd_server_has_leader)')
+            if etcd_r:
+                ch.etcd_leader = float(etcd_r[0].get("value",[0,0])[1])
+                self._last_etcd_leader = ch.etcd_leader
+            else:
+                ch.etcd_leader = getattr(self, "_last_etcd_leader", None)
+        except Exception:
+            ch.etcd_leader = getattr(self, "_last_etcd_leader", None)
+
+        # etcd 리더 노드 식별 — is_leader==1 instance IP를 kube_node_info(internal_ip→node)로 매핑.
+        # 부하 0: etcd_server_is_leader/kube_node_info 모두 _query 캐시(40s) 경유.
+        try:
+            _leader_ip = None
+            for _r in self._query('etcd_server_is_leader'):
+                if float(_r.get("value",[0,0])[1]) == 1:
+                    _leader_ip = _r.get("metric",{}).get("instance","").split(":")[0]
+                    break
+            if _leader_ip:
+                for _ni in self._query("kube_node_info"):
+                    _l = _ni.get("metric",{})
+                    if _l.get("internal_ip") == _leader_ip and _l.get("node"):
+                        ch.etcd_leader_node = _l["node"]
+                        self._last_etcd_leader_node = _l["node"]
+                        break
+            if ch.etcd_leader_node is None:
+                ch.etcd_leader_node = getattr(self, "_last_etcd_leader_node", None)
