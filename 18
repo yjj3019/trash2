@@ -1,0 +1,82 @@
+=== api_server/etcd/coredns health 값 산출 함수 (2100~2180) ===
+            if vm_fs_used:
+                logger.info("│  💾 FS      │ QEMU Agent: %d개 VM", len(vm_fs_used))
+        except Exception as _e:
+            logger.debug("VM 파일시스템 쿼리 실패: %s", _e)
+        for vm in self.metrics.vms:
+            _fkey = f"{vm.namespace}/{vm.name}"
+            if _fkey in vm_fs_used:
+                vm.__dict__['fs_used_bytes'] = vm_fs_used[_fkey]
+                vm.__dict__['fs_capacity_bytes'] = vm_fs_cap.get(_fkey, 0)
+                cap = vm_fs_cap.get(_fkey, 0)
+                vm.__dict__['fs_pct'] = round(vm_fs_used[_fkey]/cap*100, 1) if cap > 0 else None
+            vm.disk_read_bps  = rt.get((vm.name, vm.namespace), {}).get("disk_r")
+            vm.disk_write_bps = rt.get((vm.name, vm.namespace), {}).get("disk_w")
+        _fs_cnt = sum(1 for vm in self.metrics.vms if vm.__dict__.get("fs_pct") is not None)
+        _disk_cnt = sum(1 for vm in self.metrics.vms if vm.__dict__.get("fs_used_bytes"))
+        logger.info("│  💾 FS      │ fs_pct 주입: %d개 VM / fs_used_bytes: %d개", _fs_cnt, _disk_cnt)
+        if _disk_cnt == 0 and vm_fs_used:
+            # 키 매핑 샘플 로그
+            sample_rule_key = list(vm_fs_used.keys())[0]
+            sample_vm_key = f"{self.metrics.vms[0].namespace}/{self.metrics.vms[0].name}" if self.metrics.vms else "없음"
+            logger.warning("fs_used_bytes 매핑 실패! rule_key=%s vm_key=%s", sample_rule_key, sample_vm_key)
+        return len(rt)
+
+    def fetch_perf_trends(self) -> int:
+        if not self._prom_strategy: return 0
+        h = self.metrics.cluster_health
+        pt = self.metrics.perf_trend
+        etcd_j = h.matched_jobs.get("etcd", "etcd")
+        api_j = h.matched_jobs.get("api_server", "apiserver")
+        tq = {
+            "ew": f'histogram_quantile(0.99,rate(etcd_disk_wal_fsync_duration_seconds_bucket{{job="{etcd_j}"}}[5m]))',
+            "er": f'histogram_quantile(0.99,rate(etcd_network_peer_round_trip_time_seconds_bucket{{job="{etcd_j}"}}[5m]))',
+            "ar": f'sum(rate(apiserver_request_total{{job="{api_j}"}}[5m]))',
+            "ae": f'sum(rate(apiserver_request_total{{job="{api_j}",code=~"5.."}}[5m]))',
+            "al": f'histogram_quantile(0.99,sum(rate(apiserver_request_duration_seconds_bucket{{job="{api_j}"}}[5m])) by (le))',
+        }
+        with ThreadPoolExecutor(max_workers=len(tq)) as ex:
+            futs = {ex.submit(self._query_range, q): k for k, q in tq.items()}
+            for fut in as_completed(futs):
+                k = futs[fut]
+                vals, lbls = fut.result()
+                if not vals: continue
+                if k == "ew": pt.etcd_wal_p99 = vals; pt.time_labels = lbls
+                elif k == "er": pt.etcd_peer_rtt = vals
+                elif k == "ar": pt.api_req_rate = vals
+                elif k == "ae": pt.api_err_rate = vals
+                elif k == "al": pt.api_latency_p99 = vals
+        return len(tq)
+
+    def fetch_vm_pvc_capacity(self) -> int:
+        """VM volumes에 PVC 용량 매핑 (kube_persistentvolumeclaim)"""
+        try:
+            pvc_cap = {}
+            for item in self._query(
+                'kube_persistentvolumeclaim_resource_requests_storage_bytes'
+            ):
+                m = item.get("metric", {})
+                ns = m.get("namespace", "")
+                pvc = m.get("persistentvolumeclaim", "")
+                if ns and pvc:
+                    try: pvc_cap[(ns, pvc)] = int(float(item["value"][1]))
+                    except: pass
+            # 이 메트릭도 Thanos instant query 깜빡임 → EMPTY 사이클엔 직전 매핑 유지(누적 병합).
+            # 빈 결과가 capacity_bytes=0으로 덮어 Volumes "용량 정보 없음" 되는 것 방지. 추가 쿼리 0.
+            _prev = getattr(self, "_last_pvc_cap", {})
+            for k, v in _prev.items():
+                if k not in pvc_cap and v:
+                    pvc_cap[k] = v
+            if pvc_cap:
+                self._last_pvc_cap = dict(pvc_cap)
+            updated = 0
+            for vm in self.metrics.vms:
+                for vol in getattr(vm, 'volumes', []):
+                    pvc_name = vol.get("pvc") or vol.get("pvc_name") or ""
+                    if pvc_name and pvc_name != "N/A":
+                        cap = pvc_cap.get((vm.namespace, pvc_name))
+                        if cap:
+                            vol["capacity_bytes"] = cap
+                            vol["capacity"] = self._fmt_bytes(cap)
+                            updated += 1
+            if updated:
