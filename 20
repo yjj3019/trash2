@@ -1,0 +1,65 @@
+=== 1) _query_direct 정의 (guard/캐시 적용 여부) ===
+    def _query_direct(self, promql: str, timeout: int = 15) -> List[Dict]:
+        """클러스터 Prometheus 직접 쿼리 (SA 토큰) + 캐시(20s TTL).
+        부하 최소화: 매 폴링 무캐시 호출을 단주기 캐싱으로 절감.
+        마이그레이션 등 준실시간 지표라 TTL은 짧게(20s) 유지."""
+        import os as _os, urllib.parse as _up, urllib.request as _ur, json as _j, ssl as _ssl, hashlib as _hl, time as _t
+        _ck = "aibox:pq:" + _hl.md5(promql.encode()).hexdigest()
+        # 캐시 조회 (Redis 우선 → 인메모리 폴백)
+        _rc = self._get_redis()
+        if _rc:
+            try:
+                _cv = _rc.get(_ck)
+                if _cv is not None: return _j.loads(_cv)
+            except Exception: pass
+        else:
+            _c = self._query_cache.get(_ck)
+            if _c and _t.time() - _c[0] < 20.0: return _c[1]
+
+=== 2) _kv_fetch 산출부 (2010~2050, 빈결과 처리 방식) ===
+                if not name or not ns: continue
+                try:
+                    val = float(item["value"][1])
+                    tmp.setdefault((name, ns), []).append(val)
+                except Exception: pass
+            with _rt_lock:
+                for (name, ns), vals in tmp.items():
+                    v = min(vals)
+                    # CPU는 vCPU 수로 정규화
+                    if key == "cpu_pct":
+                        vcpu = _vcpu_count.get((name, ns), 1)
+                        v = v / vcpu
+                    rt.setdefault((name, ns), {})[key] = v
+        with ThreadPoolExecutor(max_workers=7) as ex:
+            _futs = [
+                ex.submit(_kv_fetch, "aibox:vm_cpu_usage_pct", "cpu_pct"),
+                ex.submit(_kv_fetch, "kubevirt_vmi_memory_used_bytes", "mem_used"),
+                ex.submit(_kv_fetch, "kubevirt_vmi_memory_available_bytes", "mem_avail"),
+                ex.submit(_kv_fetch, "aibox:vm_net_rx_bps", "net_rx"),
+                ex.submit(_kv_fetch, "aibox:vm_net_tx_bps", "net_tx"),
+                ex.submit(_kv_fetch, "aibox:vm_disk_read_bps", "disk_r"),
+                ex.submit(_kv_fetch, "aibox:vm_disk_write_bps", "disk_w"),
+            ]
+            for _f in as_completed(_futs):
+                try: _f.result()
+                except Exception: pass
+        logger.info("│  💻 VMs     │ kubevirt: %d개 (CPU/MEM/Net/Disk)", len(rt))
+
+        for vm in self.metrics.vms:
+            d = rt.get((vm.name, vm.namespace), {})
+            _cp = d.get("cpu_pct"); vm.cpu_usage_pct = min(_cp, 100.0) if _cp else None
+            mu, ma = d.get("mem_used", 0), d.get("mem_avail", 0)
+            if ma > 0:
+                vm.memory_usage_pct = mu / ma * 100
+                vm.memory_used_bytes = int(mu)
+            # NetObserv 값 우선, 없으면 kubevirt 메트릭
+            vm_key = (vm.namespace, vm.name)
+            vm.net_rx_bps = netobserv_vm_rx.get(vm_key) or d.get("net_rx")
+            vm.net_tx_bps = netobserv_vm_tx.get(vm_key) or d.get("net_tx")
+
+        # ── Live Migration 상태 수집 ──────────────────────────────
+
+=== 3) Running VM의 cpu/mem이 깜빡이는지 3회 (같은 VM 추적) ===
+Running cpu 값 있음: 40/40
+Running cpu 값 있음: 40/40
+Running cpu 값 있음: 40/40
