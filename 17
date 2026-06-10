@@ -1,0 +1,66 @@
+=== health 값 산출부 (1766~1830, matched job으로 up 쿼리 + 폴백 유무) ===
+        matched = self.metrics.cluster_health.matched_jobs
+        router_job = matched.get("router", "router-internal-default")
+        sched_job = matched.get("scheduler", "scheduler")
+        reg_job = matched.get("registry", "openshift-image-registry")
+
+        instant: Dict[str, str] = {
+            "router_req": f'sum(rate(haproxy_backend_http_responses_total{{job="{router_job}"}}[5m]))',
+            "router_4xx": f'sum(rate(haproxy_backend_http_responses_total{{job="{router_job}",code="4xx"}}[5m]))',
+            "router_5xx": f'sum(rate(haproxy_backend_http_responses_total{{job="{router_job}",code="5xx"}}[5m]))',
+            "router_sess": f'sum(haproxy_server_current_sessions{{job="{router_job}"}})',
+            "router_routes": f'count(haproxy_backend_status{{job="{router_job}"}})',
+            "sched_pending": 'sum(scheduler_pending_pods) or vector(0)',
+            "ovn_ports": 'sum(ovnkube_controller_logical_port_total) or sum(ovnkube_master_logical_port_total) or vector(0)',
+            "ovn_nb": 'max(ovnkube_controller_nb_db_leader) or max(ovnkube_master_nb_db_leader) or vector(0)',
+            "reg_req": f'sum(rate(registry_http_requests_total{{job="{reg_job}"}}[5m])) or vector(0)',
+        }
+        range_q: Dict[str, str] = {
+            "router_req_t": f'sum(rate(haproxy_backend_http_responses_total{{job="{router_job}"}}[5m]))',
+            "router_5xx_t": f'sum(rate(haproxy_backend_http_responses_total{{job="{router_job}",code="5xx"}}[5m]))',
+            "sched_lat_t": f'histogram_quantile(0.99,sum(rate(scheduler_scheduling_attempt_duration_seconds_bucket{{job="{sched_job}"}}[5m])) by (le))',
+            "reg_req_t": f'sum(rate(registry_http_requests_total{{job="{reg_job}"}}[5m]))',
+        }
+        im = self.metrics.infra
+        with ThreadPoolExecutor(max_workers=len(instant) + len(range_q)) as ex:
+            i_futs = {ex.submit(self._query, q): k for k, q in instant.items()}
+            r_futs = {ex.submit(self._query_range, q): k for k, q in range_q.items()}
+            for fut in as_completed({**i_futs, **r_futs}):
+                if fut in i_futs:
+                    k = i_futs[fut]
+                    val = self._scalar(fut.result())
+                    if val is None: continue
+                    if k == "router_req": im.router_req_rate = val
+                    elif k == "router_4xx": im.router_4xx_rate = val
+                    elif k == "router_5xx": im.router_5xx_rate = val
+                    elif k == "router_sess": im.router_sessions = val
+                    elif k == "router_routes": im.router_routes = val
+                    elif k == "sched_pending": im.sched_pending = val
+                    elif k == "ovn_ports": im.ovn_ports = val
+                    elif k == "ovn_nb": im.ovn_nb_leader = val
+                    elif k == "reg_req": im.reg_req_rate = val
+                else:
+                    k = r_futs[fut]
+                    vals, lbls = fut.result()
+                    if not vals: continue
+                    if k == "router_req_t": im.router_req_trend = vals; im.trend_labels = lbls
+                    elif k == "router_5xx_t": im.router_5xx_trend = vals
+                    elif k == "sched_lat_t": im.sched_lat_trend = vals
+                    elif k == "reg_req_t": im.reg_trend = vals
+        return len(instant)
+
+    def fetch_node_realtime(self) -> int:
+        if not self.metrics.nodes or not self._prom_strategy: return 0
+        test = self._query('count by(instance) (node_cpu_seconds_total{mode="idle"})')
+        has_node = bool(test)
+
+        # node_network_* 는 node 레이블 없이 instance(IP) 만 있는 경우 대비
+        test_net = self._query('count by(instance) (node_network_receive_bytes_total{device!="lo"})')
+        has_node_net = bool(test_net)
+
+        ip_map: Dict[str, str] = {}
+        if True:  # 항상 ip_map 빌드
+            for item in self._query("kube_node_info"):
+                lbl = item.get("metric", {})
+                if lbl.get("node") and lbl.get("internal_ip"):
+                    ip_map[lbl["internal_ip"]] = lbl["node"]
