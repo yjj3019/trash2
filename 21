@@ -1,0 +1,66 @@
+=== pageVMs 정의 + 페이지네이션 로직 (5500~5550) ===
+  if (pages <= 1) { el.innerHTML = ''; return; }
+  let html = `<div style="display:flex;align-items:center;gap:6px;justify-content:center;padding:8px;">`;
+  html += `<span style="font-size:11px;color:var(--txt-muted);">${total}개 중 ${_vmPage*_vmPageSize+1}~${Math.min((_vmPage+1)*_vmPageSize,total)}</span>`;
+  html += `<button onclick="_vmPage=Math.max(0,_vmPage-1);renderVMPage()" style="padding:3px 10px;border-radius:5px;border:1px solid var(--bd);background:var(--bg-card);color:var(--txt-primary);cursor:pointer;">◀</button>`;
+  for (let p=0;p<pages;p++) {
+    const active = p===_vmPage ? 'background:var(--accent);color:#fff;' : '';
+    html += `<button onclick="_vmPage=${p};renderVMPage()" style="padding:3px 8px;border-radius:5px;border:1px solid var(--bd);${active}cursor:pointer;">${p+1}</button>`;
+  }
+  html += `<button onclick="_vmPage=Math.min(${pages-1},_vmPage+1);renderVMPage()" style="padding:3px 10px;border-radius:5px;border:1px solid var(--bd);background:var(--bg-card);color:var(--txt-primary);cursor:pointer;">▶</button>`;
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderVMPage() {
+  const start = _vmPage * _vmPageSize;
+  const pageVMs = _vmFiltered.slice(start, start + _vmPageSize);
+  document.getElementById('tbody-vms').innerHTML = pageVMs.map(vm => renderVMRow(vm)).join('');
+  renderVMPagination();
+}
+
+function renderVMRow(vm) {
+  const v = vm;
+  const vols = v.volumes || [];
+  const diskTotal = v.disk_used_bytes || 0;
+  return `<tr style="cursor:pointer;" onclick="openVMDetail('${v.name}','${v.namespace}')">
+    <td class="mono" style="color:var(--accent2)">${v.name}</td>
+    <td><span class="badge badge-off">${v.namespace}</span></td>
+    <td>${statusBadge(v.status_group)}</td>
+    <td style="color:var(--txt-secondary);font-size:11px;">${(v.node||'').split('.')[0]}</td>
+    <td class="mono" style="font-size:11px;">${v.ip||'—'}</td>
+    <td style="font-size:10px;color:var(--txt-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;" title="${v.os||''}">${fmtOS(v.os)}</td>
+    <td style="text-align:center;">${v.cpu_cores||'—'}</td>
+    <td><div class="pbar-wrap"><div class="pbar"><div class="pbar-fill ${pbarColor(v.cpu_pct)}" style="width:${v.cpu_pct||0}%"></div></div><span style="font-size:10px;color:var(--txt-secondary);width:36px">${fmtPct(v.cpu_pct)}</span></div></td>
+    <td style="font-size:11px;">${v.memory_total||'—'}</td>
+    <td><div class="pbar-wrap"><div class="pbar"><div class="pbar-fill ${pbarColor(v.mem_pct)}" style="width:${v.mem_pct||0}%"></div></div><span style="font-size:10px;color:var(--txt-secondary);width:36px">${fmtPct(v.mem_pct)}</span></div></td>
+    <td class="mono" style="font-size:10px;">${diskTotal ? fmtBytes(diskTotal) : '—'}</td>
+    <td class="mono" style="font-size:10px;">${fmtBps(v.net_rx_bps)}</td>
+    <td class="mono" style="font-size:10px;">${fmtBps(v.net_tx_bps)}</td>
+    <td>${v.has_agent ? '<span class="badge badge-ok">Agent ✅</span>' : '<span class="badge badge-off">Agent —</span>'}</td>
+    <td style="font-size:11px;">${v.age||'—'}</td>
+  </tr>`;
+}
+function filterVMs() {
+  const search = document.getElementById('vm-search').value.toLowerCase();
+  const ns = document.getElementById('vm-ns-filter').value;
+  const st = document.getElementById('vm-status-filter').value;
+  const filtered = _allVMs.filter(v =>
+    (!search || v.name.includes(search) || v.namespace.includes(search) || v.node.includes(search)) &&
+    (!ns || v.namespace === ns) &&
+    (!st || v.status_group === st)
+  );
+
+=== 페이지네이션 UI/상태 변수 (pageSize/currentPage/vmPage 등) ===
+5491:let _vmPage = 0;
+5492:const _vmPageSize = 20;
+5497:  const pages = Math.ceil(total / _vmPageSize);
+5502:  html += `<span style="font-size:11px;color:var(--txt-muted);">${total}개 중 ${_vmPage*_vmPageSize+1}~${Math.min((_vmPage+1)*_vmPageSize,total)}</span>`;
+5503:  html += `<button onclick="_vmPage=Math.max(0,_vmPage-1);renderVMPage()" style="padding:3px 10px;border-radius:5px;border:1px solid var(--bd);background:var(--bg-card);color:var(--txt-primary);cursor:pointer;">◀</button>`;
+5505:    const active = p===_vmPage ? 'background:var(--accent);color:#fff;' : '';
+5506:    html += `<button onclick="_vmPage=${p};renderVMPage()" style="padding:3px 8px;border-radius:5px;border:1px solid var(--bd);${active}cursor:pointer;">${p+1}</button>`;
+5508:  html += `<button onclick="_vmPage=Math.min(${pages-1},_vmPage+1);renderVMPage()" style="padding:3px 10px;border-radius:5px;border:1px solid var(--bd);background:var(--bg-card);color:var(--txt-primary);cursor:pointer;">▶</button>`;
+5514:  const start = _vmPage * _vmPageSize;
+5515:  const pageVMs = _vmFiltered.slice(start, start + _vmPageSize);
+5516:  document.getElementById('tbody-vms').innerHTML = pageVMs.map(vm => renderVMRow(vm)).join('');
+5586:  _vmPage = 0;
