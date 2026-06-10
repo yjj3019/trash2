@@ -1,0 +1,46 @@
+Using project "default".
+prometheus-k8s-0                                         6/6     Running   0               4d17h
+prometheus-k8s-1                                         6/6     Running   0               4d16h
+thanos-querier-5fbff8f8db-b8h2b                          6/6     Running   0               4d17h
+thanos-querier-5fbff8f8db-p25bq                          6/6     Running   0               4d16h
+Found 2 pods, using pod/thanos-querier-5fbff8f8db-b8h2b
+ts=2026-06-05T11:12:02.854566096Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.38:10901
+ts=2026-06-05T11:12:07.855612679Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.42:10901
+ts=2026-06-05T11:12:07.85563207Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.38:10901
+ts=2026-06-05T11:12:07.855740166Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.39:10901
+ts=2026-06-05T11:12:12.856825316Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.39:10901
+ts=2026-06-05T11:12:12.856942914Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.42:10901
+ts=2026-06-05T11:12:12.857049241Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.38:10901
+ts=2026-06-05T11:12:17.858293507Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.38:10901
+ts=2026-06-05T11:12:17.858416687Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.39:10901
+ts=2026-06-05T11:12:17.858496288Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.42:10901
+ts=2026-06-05T11:12:22.859109456Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.39:10901
+ts=2026-06-05T11:12:22.85915802Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.42:10901
+ts=2026-06-05T11:12:22.859218387Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.38:10901
+ts=2026-06-05T11:12:27.859424341Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.39:10901
+ts=2026-06-05T11:12:27.859440072Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.42:10901
+ts=2026-06-05T11:12:27.859460348Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.38:10901
+ts=2026-06-05T11:12:32.859690142Z caller=endpointset.go:465 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = context deadline exceeded" address=10.131.1.42:10901
+ts=2026-06-05T11:27:32.857554032Z caller=endpointset.go:430 level=info component=endpointset msg="adding new rule with [storeEndpoints rulesAPI]" address=10.131.0.15:10901 extLset="{thanos_ruler_replica=\"thanos-ruler-user-workload-1\"}"
+ts=2026-06-05T11:27:32.857610846Z caller=endpointset.go:430 level=info component=endpointset msg="adding new sidecar with [storeEndpoints rulesAPI exemplarsAPI targetsAPI MetricMetadataAPI]" address=10.131.0.14:10901 extLset="{prometheus=\"openshift-user-workload-monitoring/user-workload\", prometheus_replica=\"prometheus-user-workload-1\"}"
+ts=2026-06-05T11:27:32.857624477Z caller=endpointset.go:430 level=info component=endpointset msg="adding new sidecar with [storeEndpoints rulesAPI exemplarsAPI targetsAPI MetricMetadataAPI]" address=10.131.0.13:10901 extLset="{prometheus=\"openshift-monitoring/k8s\", prometheus_replica=\"prometheus-k8s-1\"}"
+
+중앙 flicker guard 적용 OK (helper 1 + return 2곳)
+문법 OK
+
+=== 배포 결과 ===
+NAMES           STATUS                    PORTS
+aibox-redis     Up 38 seconds (healthy)   6379/tcp
+aibox-postgres  Up 34 seconds (healthy)   5432/tcp
+aibox-portal    Up 18 seconds (starting)  0.0.0.0:8000->8000/tcp, 8080/tcp
+
+⚠️  API 응답 대기 중... 잠시 후 확인하세요
+
+
+
+
+
+결과 나오지 않음.
+
+
+
