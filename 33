@@ -1,0 +1,117 @@
+
+Expert Security Intelligence Report
+Analysis Engine: Advanced LLM Integrated | Ref: #PPB55Q
+
+Threat Score
+
+45
+WARNING
+01
+패킷 데이터 개요 (Analysis Summary)
+트래픽 프로파일링 (위험도)
+WARNING
+
+진단 시스템 상태
+DPI 병렬 처리 완료
+
+02
+전문가 진단 리포트 (Technical Deep-Dive)
+제공된 confirmed_findings와 통계 데이터를 교차 검증한 결과, 본 트래픽은 NFS(포트 2049) 기반 스토리지 파일 전송 세션으로 확인됩니다. 먼저, 탐지된 웹 공격 시그니처(SQL Injection 54건, Directory Traversal 21건, Shellcode 1건, High Entropy 5건, 총 81건)는 모두 [File-Content Match on NFS: FP 가능성 높음] 태그가 부착되어 있으며, anomalous_samples의 페이로드 해독 결과 'proxmox-node', 'systemd session', 'authentication.kubernetes.io/credential-id', 'spf13/cobra' 등의 시스템 로그, Kubernetes 자격증명, Go/PowerShell 스크립트 파일이 전송 중임을 확인했습니다. 이는 전송 중인 파일 콘텐츠가 시그니처와 통계적으로 매칭된 False Positive로 판단되며, 실제 웹 공격 시도는 아닙니다. 따라서 위협 점수 산정 시 해당 FP 건수는 제외하였습니다.
+
+성능 측면에서 Duplicate ACK은 양방향으로 총 46건(25+21) 발생했으며, 전체 패킷 수(48,859) 대비 약 0.09%에 불과합니다. TCP Zero Window나 대량 Retransmission이 동반되지 않았으므로, 이는 경미한 패킷 순서 역전(Out-of-Order) 또는 일시적 네트워크 지터에 의한 현상으로 성능 저하의 주요 원인으로 보기 어렵습니다.
+
+본 분석의 핵심 리스크는 '비암호화 스토리지 채널을 통한 민감정보 평문 전송'입니다. 총 29건의 자격증명 추정 문자열이 평문 NFS 채널로 이동했으며, 샘플 분석 결과 Kubernetes 인증 토큰 및 pgadmin 세션 정보가 노출된 것으로 확인됩니다. 스토리지 네트워크 격리 부재 및 NFSv4 Kerberos 암호화(krb5p) 미적용이 근본 원인(Root Cause)으로 지목됩니다. FP로 분류된 시그니처 매칭 건수는 제외하고, 실질적인 데이터 기밀성 침해 리스크를 기준으로 WARNING 등급(점수 45)으로 평가합니다.
+03
+대응 권고 및 해결 방안 (Recommendations)
+1
+NFS 서버 및 클라이언트 설정을 NFSv4 프로토콜로 업그레이드하고, exports 설정에 sec=krb5p 또는 sec=krb5i 옵션을 적용하여 전송 중 암호화(Encryption in Transit)를 강제하십시오.
+
+2
+NFS 트래픽이 유출될 수 있는 일반 LAN과 분리하기 위해 스토리지 전용 VLAN 또는 독립 물리 네트워크를 구성하여 네트워크 격리(Network Segmentation)를 구현하십시오.
+
+3
+100.100.100.10 ↔ 100.100.100.101 구간에서 발생한 Duplicate ACK(0.09%)을 모니터링하며, MTU 불일치로 인한 패킷 분할(Packet Fragmentation) 또는 스위치 큐잉 지연 여부를 점검하고 필요시 TCP Window Scaling을 최적화하십시오.
+
+4
+전송 파일 내 민감정보(자격증명, 세션 토큰)를 사전에 마스킹하거나 암호화한 후 스토리지 채널로 전송하는 데이터 거버넌스 정책을 수립하고, IDS/IPS 모니터링 시 NFS 포트 콘텐츠 매칭 FP 필터링 규칙을 적용하여 분석 노이즈를 제거하십시오.
+
+Protocol Distribution
+Traffic Intensity (PPS)
+L3/L4 Packet Flow Sequence
+Visualization of Samples
+100.100.100.12
+100.100.100.102
+100.100.100.101
+100.100.100.10
+100.100.100.11
+100.100.100.12
+100.100.100.102
+100.100.100.101
+100.100.100.10
+100.100.100.11
+TCP (2962B)
+1
+TCP (1402B)
+2
+TCP (4802B)
+3
+TCP (7306B)
+4
+TCP (59434B)
+5
+TCP (5858B)
+6
+TCP (12614B)
+7
+TCP (65226B)
+8
+TCP (11650B)
+9
+TCP (2962B)
+10
+TCP (7306B)
+11
+TCP (2962B)
+12
+TCP (7306B)
+13
+TCP (2962B)
+14
+TCP (4410B)
+15
+Anomaly/Raw Inspection Samples
+Time	Source	Destination	Prot	Len	Dissection
+12:53:24.730	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: NFS | Flags: [PA] | Win: 12315 | ⚠️ Sensitive Data over Unencrypted Storage Channel (NFS)
+12:53:24.730	100.100.100.11Alert	100.100.100.10	TCP	1402	SVC: NFS | Flags: [PA] | Win: 12315 | ⚠️ Sensitive Data over Unencrypted Storage Channel (NFS)
+12:53:25.096	100.100.100.11Alert	100.100.100.10	TCP	4802	SVC: NFS | Flags: [PA] | Win: 12315 | ⚠️ Sensitive Data over Unencrypted Storage Channel (NFS)
+12:53:25.131	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: NFS | Flags: [PA] | Win: 22896 | ⚠️ Sensitive Data over Unencrypted Storage Channel (NFS)
+12:53:25.131	100.100.100.101Alert	100.100.100.10	TCP	59434	SVC: NFS | Flags: [A] | Win: 22896 | ⚠️ Sensitive Data over Unencrypted Storage Channel (NFS)
+12:53:25.131	100.100.100.101Alert	100.100.100.10	TCP	5858	SVC: NFS | Flags: [PA] | Win: 22896 | ⚠️ Sensitive Data over Unencrypted Storage Channel (NFS)
+12:53:37.574	100.100.100.10Alert	100.100.100.101	TCP	12614	SVC: NFS | Flags: [PA] | Win: 24576 | ⚠️ Sensitive Data over Unencrypted Storage Channel (NFS)
+12:53:43.384	100.100.100.10Alert	100.100.100.101	TCP	65226	SVC: NFS | Flags: [A] | Win: 24576 | ⚠️ Sensitive Data over Unencrypted Storage Channel (NFS)
+12:53:23.190	100.100.100.102Alert	100.100.100.10	TCP	11650	SVC: NFS | Flags: [PA] | Win: 21711 | ⚠️ Directory Traversal Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:23.754	100.100.100.102Alert	100.100.100.10	TCP	2962	SVC: NFS | Flags: [PA] | Win: 21711 | ⚠️ SQL Injection Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:23.831	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: NFS | Flags: [A] | Win: 22893 | ⚠️ SQL Injection Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:25.829	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: NFS | Flags: [PA] | Win: 12315 | ⚠️ SQL Injection Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:28.830	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: NFS | Flags: [A] | Win: 21760 | ⚠️ SQL Injection Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:31.408	100.100.100.12Alert	100.100.100.10	TCP	2962	SVC: NFS | Flags: [PA] | Win: 16341 | ⚠️ Directory Traversal Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:31.409	100.100.100.12Alert	100.100.100.10	TCP	4410	SVC: NFS | Flags: [PA] | Win: 16341 | ⚠️ Directory Traversal Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:32.601	100.100.100.11Alert	100.100.100.10	TCP	5858	SVC: NFS | Flags: [A] | Win: 12348 | ⚠️ High Entropy Payload (7.61) on Non-TLS Port [File-Content Match on NFS: FP 가능성 높음]
+12:53:33.823	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: NFS | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:33.824	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: NFS | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:33.824	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: NFS | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:33.830	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: NFS | Flags: [A] | Win: 21760 | ⚠️ SQL Injection Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:33.835	100.100.100.10Alert	100.100.100.11	TCP	206	SVC: NFS | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:33.836	100.100.100.10Alert	100.100.100.11	TCP	206	SVC: NFS | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:34.347	100.100.100.101Alert	100.100.100.10	TCP	39162	SVC: NFS | Flags: [A] | Win: 21760 | ⚠️ High Entropy Payload (7.61) on Non-TLS Port [File-Content Match on NFS: FP 가능성 높음]
+12:53:34.998	100.100.100.10Alert	100.100.100.101	TCP	61638	SVC: NFS | Flags: [PA] | Win: 24576 | ⚠️ High Entropy Payload (7.81) on Non-TLS Port [File-Content Match on NFS: FP 가능성 높음]
+12:53:34.998	100.100.100.10Alert	100.100.100.101	TCP	65226	SVC: NFS | Flags: [A] | Win: 24576 | ⚠️ High Entropy Payload (7.62) on Non-TLS Port [File-Content Match on NFS: FP 가능성 높음]
+12:53:34.998	100.100.100.10Alert	100.100.100.101	TCP	4538	SVC: NFS | Flags: [PA] | Win: 24576 | ⚠️ High Entropy Payload (7.9) on Non-TLS Port [File-Content Match on NFS: FP 가능성 높음]
+12:53:35.280	100.100.100.101Alert	100.100.100.10	TCP	5858	SVC: NFS | Flags: [PA] | Win: 21760 | ⚠️ Directory Traversal Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:35.280	100.100.100.101Alert	100.100.100.10	TCP	17442	SVC: NFS | Flags: [PA] | Win: 21760 | ⚠️ Directory Traversal Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:35.281	100.100.100.101Alert	100.100.100.10	TCP	15994	SVC: NFS | Flags: [PA] | Win: 21760 | ⚠️ Directory Traversal Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:37.569	100.100.100.10Alert	100.100.100.101	TCP	65226	SVC: NFS | Flags: [A] | Win: 24576 | ⚠️ Shellcode/Command Exec Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:38.229	100.100.100.11Alert	100.100.100.10	TCP	7306	SVC: NFS | Flags: [A] | Win: 12348 | ⚠️ Directory Traversal Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:38.229	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: NFS | Flags: [PA] | Win: 12348 | ⚠️ Directory Traversal Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:43.384	100.100.100.10Alert	100.100.100.101	TCP	53442	SVC: NFS | Flags: [A] | Win: 24576 | ⚠️ Directory Traversal Signature detected [File-Content Match on NFS: FP 가능성 높음]
+12:53:47.868	100.100.100.102Alert	100.100.100.10	TCP	21786	SVC: NFS | Flags: [A] | Win: 21689 | ⚠️ Directory Traversal Signature detected [File-Content Match on NFS: FP 가능성 높음]
