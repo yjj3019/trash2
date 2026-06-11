@@ -1,0 +1,82 @@
+=== filterVMs 전체 + renderVMs 본문 (5545~5625) ===
+    <td class="mono" style="font-size:10px;">${fmtBps(v.net_rx_bps)}</td>
+    <td class="mono" style="font-size:10px;">${fmtBps(v.net_tx_bps)}</td>
+    <td>${v.has_agent ? '<span class="badge badge-ok">Agent ✅</span>' : '<span class="badge badge-off">Agent —</span>'}</td>
+    <td style="font-size:11px;">${v.age||'—'}</td>
+  </tr>`;
+}
+function filterVMs() {
+  const search = document.getElementById('vm-search').value.toLowerCase();
+  const ns = document.getElementById('vm-ns-filter').value;
+  const st = document.getElementById('vm-status-filter').value;
+  const filtered = _allVMs.filter(v =>
+    (!search || v.name.includes(search) || v.namespace.includes(search) || v.node.includes(search)) &&
+    (!ns || v.namespace === ns) &&
+    (!st || v.status_group === st)
+  );
+  document.getElementById('tbody-vms').innerHTML = filtered.map(v => {
+    // root/data 디스크 구분
+    const vols = v.volumes || [];
+    const rootVol = vols.find(vl => (vl.name||'').endsWith('-rootdisk') || (vl.pvc||'').endsWith('-rootdisk'));
+    const dataVols = vols.filter(vl => vl !== rootVol);
+    const rootUsed = rootVol?.used_bytes || 0;
+    const dataUsed = dataVols.reduce((s,vl) => s + (vl.used_bytes||0), 0);
+    const diskTotal = v.disk_used_bytes || 0;
+    return `<tr style="cursor:pointer;" onclick="openVMDetail('${v.name}','${v.namespace}')">
+      <td class="mono" style="color:var(--accent2)">${v.name}</td>
+      <td><span class="badge badge-off" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;">${v.namespace}</span></td>
+      <td>${statusBadge(v.status_group)}</td>
+      <td style="color:var(--txt-secondary);font-size:11px;">${v.node.split('.')[0]}</td>
+      <td class="mono" style="font-size:11px;">${v.ip}</td>
+      <td style="text-align:center;">${v.cpu_cores}</td>
+      <td><div class="pbar-wrap"><div class="pbar"><div class="pbar-fill ${pbarColor(v.cpu_pct)}" style="width:${v.cpu_pct||0}%"></div></div><span style="font-size:10px;color:var(--txt-secondary);width:36px">${fmtPct(v.cpu_pct)}</span></div></td>
+      <td style="font-size:11px;">${v.memory_total}</td>
+      <td><div class="pbar-wrap"><div class="pbar"><div class="pbar-fill ${pbarColor(v.mem_pct)}" style="width:${v.mem_pct||0}%"></div></div><span style="font-size:10px;color:var(--txt-secondary);width:36px">${fmtPct(v.mem_pct)}</span></div></td>
+      <td class="mono" style="font-size:10px;">${diskTotal ? fmtBytes(diskTotal) : '—'}</td>
+      <td class="mono" style="font-size:10px;">${fmtBps(v.net_rx_bps)}</td>
+      <td class="mono" style="font-size:10px;">${fmtBps(v.net_tx_bps)}</td>
+      <td style="font-size:11px;">${v.age}</td>
+      <td style="font-size:10px;color:var(--accent);text-align:center;">📈</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="14" style="text-align:center;color:var(--txt-muted);padding:24px;">VM 없음</td></tr>';
+}
+document.getElementById('vm-search').addEventListener('input', filterVMs);
+document.getElementById('vm-ns-filter').addEventListener('change', filterVMs);
+document.getElementById('vm-status-filter').addEventListener('change', filterVMs);
+
+// ═══════════════════════════════════════════════
+// RENDER: STORAGE
+// ═══════════════════════════════════════════════
+function renderVMs(vms) {
+  _allVMs = vms || [];
+  _vmPage = 0;
+  _vmFiltered = _allVMs;
+  // 네임스페이스 필터 드롭다운 갱신
+  const sel = document.getElementById('vm-ns-filter');
+  if (sel) {
+    const ns = [...new Set(_allVMs.map(v => v.namespace))].sort();
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All Namespaces</option>' +
+      ns.map(n => `<option value="${n}" ${n===cur?'selected':''}>${n}</option>`).join('');
+  }
+  // 상태 필터
+  const sf = document.getElementById('vm-status-filter');
+  const statusFilter = sf ? sf.value : '';
+  const nsFilter = sel ? sel.value : '';
+  _vmFiltered = _allVMs.filter(vm =>
+    (!statusFilter || vm.status_group === statusFilter) &&
+    (!nsFilter || vm.namespace === nsFilter)
+  );
+  renderVMPage();
+}
+
+function renderStorage(st) {
+  const vmMap = st.pvc_vm_map || {};
+
+  // ── Top 5 최대 할당 PV ──────────────────────────────────────
+  const pvsSorted = [...(st.pvs || [])]
+    .filter(p => p.capacity_bytes > 0)
+    .sort((a, b) => b.capacity_bytes - a.capacity_bytes)
+    .slice(0, 5);
+
+  const maxPvBytes = pvsSorted[0]?.capacity_bytes || 1;
