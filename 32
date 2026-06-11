@@ -1,0 +1,46 @@
+
+Expert Security Intelligence Report
+Analysis Engine: Advanced LLM Integrated | Ref: #KJPFUH
+
+Threat Score
+
+15
+NORMAL / STABLE
+01
+패킷 데이터 개요 (Analysis Summary)
+트래픽 프로파일링 (위험도)
+INFO
+
+진단 시스템 상태
+DPI 병렬 처리 완료
+
+02
+전문가 진단 리포트 (Technical Deep-Dive)
+전체 56,098개 패킷 중 TCP가 92.8%를 차지하며 Kubernetes 클러스터 내부 통신 특성을 명확히 반영합니다. TCP 3-way Handshake 성공률은 SYN(741) 대비 SYN-ACK(728)으로 98.2%로 매우 양호하며, 연결 수립 단계의 장애는 확인되지 않습니다. RST-ACK(499)가 FIN-ACK(472)보다 다소 높게 관측되나, 전체 트래픽 대비 0.89% 수준으로 K8s 환경의 동적 포드 생명주기 관리, 롤링 업데이트 또는 헬스체크 타임아웃에 의한 정상적인 연결 종료로 판단됩니다. 핵심 이상 징후는 'TCP Zero Window' 1건으로, 전체 패킷 대비 0.0018%에 불과합니다. 이는 100.10.110.10에서 100.10.110.102(Kubernetes-API)로 전송된 패킷에서 수신측 애플리케이션 처리 지연 또는 버퍼 일시적 포화로 인해 TCP 흐름 제어(Flow Control)가 정상적으로 작동한 결과입니다. 보안 위협(포트 스캔, 플러딩, 악성 시그니처)은 전혀 확인되지 않았으며, 단일 Zero Window 이벤트는 성능 장애 지표(indicator)로 분류되나 발생 빈도가 극히 낮아 시스템에 실질적인 영향은 미미합니다. 베이스라인 관점에서 현재 네트워크는 안정적이나, API 서버 부하 변동에 대한 지속적 모니터링이 필요합니다.
+03
+대응 권고 및 해결 방안 (Recommendations)
+1
+Kubernetes API 서버(100.10.110.102)의 메트릭스(요청 큐 대기 시간, etcd 지연 시간, GC Pause)를 13:25:48 전후로 확인하여 일시적 병목 원인 파악
+
+2
+Zero Window 발생 빈도가 증가할 경우, 노드 OS의 TCP 수신 버퍼 크기(net.ipv4.tcp_rmem) 및 Window Scaling 설정 최적화 검토
+
+3
+RST-ACK 패킷의 출발지 IP를 추적하여 로드밸런서 헬스체크 또는 클라이언트 타임아웃 설정이 실제 서비스 응답 시간과 일치하는지 검증
+
+4
+K8s 클러스터 내 API 호출 패턴을 분석하여 특정 컨트롤러 또는 노드 에이전트의 과도한 폴링(Polling) 주기가 있는지 확인 및 조정
+
+Protocol Distribution
+Traffic Intensity (PPS)
+L3/L4 Packet Flow Sequence
+Visualization of Samples
+100.10.110.102
+100.10.110.10
+100.10.110.102
+100.10.110.10
+TCP (66B)
+1
+Anomaly/Raw Inspection Samples
+Time	Source	Destination	Prot	Len	Dissection
+13:25:48.188	100.10.110.10Alert	100.10.110.102	TCP	66	SVC: Kubernetes-API | Flags: [A] | Win: 0 | ⚠️ TCP Zero Window (Receiver Bottleneck/Congestion)
