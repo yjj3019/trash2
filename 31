@@ -1,0 +1,225 @@
+
+Expert Security Intelligence Report
+Analysis Engine: Advanced LLM Integrated | Ref: #ALRFH8
+
+Threat Score
+
+45
+WARNING
+01
+패킷 데이터 개요 (Analysis Summary)
+트래픽 프로파일링 (위험도)
+WARNING
+
+진단 시스템 상태
+DPI 병렬 처리 완료
+
+02
+전문가 진단 리포트 (Technical Deep-Dive)
+전체 56,098개 패킷 중 TCP가 92.8%(52,071개)를 차지하며, TCP 3-way Handshake 성공률은 SYN(741) 대비 SYN-ACK(728)으로 98.2%를 기록하여 연결 수립은 정상적임. 그러나 총 12,225건의 이상 징후 중 12,224건(99.9%)이 'High Entropy Payload'로 분류되었으며, 이는 페이로드 헥스(170303...)가 TLS 1.2 Application Data를 나타내는 것으로 확인됨. 암호화된 Kubernetes API 트래픽의 엔트로피(7.5~8.0)는 정상 범위이나, DPI 엔진이 이를 'Non-TLS Port'로 오인식하여 고엔트로피 및 SQL Injection 시그니처(6건) FP(False Positive)를 대량 발생시킨 것으로 판단됨. TCP Zero Window는 전체 패킷 대비 0.0018%(1건)로 성능 저하 지표로 보기 어려우며, RST 패킷(RA 499 + R 33 = 532건, 0.95%)은 K8s 컨트롤러 및 kubelet의 짧은 생명주기 연결과 헬스체크로 인한 정상적인 연결 종료 패턴으로 분석됨. 실질적인 보안 위협은 없으나, 암호화 트래픽의 오분류로 인한 모니터링 노이즈 및 K8s API 통신 채널의 보안 설정 검증이 필요함.
+03
+대응 권고 및 해결 방안 (Recommendations)
+1
+DPI/IDS 엔진에서 Kubernetes API 포트(기본 6443)를 TLS 암호화 트래픽으로 명시적으로 등록하여 High Entropy 및 L7 시그니처 FP 경고를 필터링하고 모니터링 노이즈 제거
+
+2
+K8s API 서버(100.10.110.10)의 TLS 설정 확인 및 mTLS 적용 여부 검증. 비표준 포트 사용 시 방화벽 및 로드밸런서 정책에서 암호화 채널 강제 적용 검토
+
+3
+RST 패킷 발생 원인 분석을 위해 Wireshark에서 tcp.rst 필터로 캡처 수행. kubelet 프로브 타임아웃 또는 클라이언트 연결 끊김 패턴 확인 후 필요 시 keepalive 설정 최적화
+
+4
+TCP Zero Window는 0.0018%로 경미하나, 수신 버퍼 부족 시 대비하여 OS 레벨 net.core.rmem_max 및 애플리케이션 스레드 풀 설정을 최적화하여 잠재적 성능 병목 예방
+
+Protocol Distribution
+Traffic Intensity (PPS)
+L3/L4 Packet Flow Sequence
+Visualization of Samples
+100.10.110.101
+100.10.110.10
+100.10.110.102
+100.10.110.101
+100.10.110.10
+100.10.110.102
+TCP (40610B)
+1
+TCP (16450B)
+2
+TCP (932B)
+3
+TCP (932B)
+4
+TCP (635B)
+5
+TCP (635B)
+6
+TCP (918B)
+7
+TCP (593B)
+8
+TCP (918B)
+9
+TCP (593B)
+10
+TCP (1022B)
+11
+TCP (737B)
+12
+TCP (1022B)
+13
+TCP (737B)
+14
+TCP (936B)
+15
+Anomaly/Raw Inspection Samples
+Time	Source	Destination	Prot	Len	Dissection
+13:25:44.115	100.10.110.102Alert	100.10.110.10	TCP	40610	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (8.0) on Non-TLS Port, SQL Injection Signature detected
+13:25:44.115	100.10.110.10Alert	100.10.110.101	TCP	16450	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.99) on Non-TLS Port, SQL Injection Signature detected
+13:25:52.917	100.10.110.102Alert	100.10.110.10	TCP	932	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.79) on Non-TLS Port, SQL Injection Signature detected
+13:25:52.917	100.10.110.10Alert	100.10.110.101	TCP	932	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.79) on Non-TLS Port, SQL Injection Signature detected
+13:26:44.357	100.10.110.102Alert	100.10.110.10	TCP	635	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.59) on Non-TLS Port, SQL Injection Signature detected
+13:26:44.357	100.10.110.10Alert	100.10.110.101	TCP	635	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.59) on Non-TLS Port, SQL Injection Signature detected
+13:25:25.753	100.10.110.102Alert	100.10.110.10	TCP	918	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.79) on Non-TLS Port
+13:25:25.753	100.10.110.102Alert	100.10.110.10	TCP	593	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.59) on Non-TLS Port
+13:25:25.753	100.10.110.10Alert	100.10.110.101	TCP	918	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.79) on Non-TLS Port
+13:25:25.753	100.10.110.10Alert	100.10.110.101	TCP	593	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.59) on Non-TLS Port
+13:25:25.801	100.10.110.102Alert	100.10.110.10	TCP	1022	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.81) on Non-TLS Port
+13:25:25.801	100.10.110.102Alert	100.10.110.10	TCP	737	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.75) on Non-TLS Port
+13:25:25.801	100.10.110.10Alert	100.10.110.101	TCP	1022	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.81) on Non-TLS Port
+13:25:25.801	100.10.110.10Alert	100.10.110.101	TCP	737	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.75) on Non-TLS Port
+13:25:25.948	100.10.110.102Alert	100.10.110.10	TCP	936	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
+13:25:25.948	100.10.110.102Alert	100.10.110.10	TCP	611	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.64) on Non-TLS Port
+13:25:25.948	100.10.110.10Alert	100.10.110.101	TCP	936	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
+13:25:25.948	100.10.110.10Alert	100.10.110.101	TCP	611	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.64) on Non-TLS Port
+13:25:25.982	100.10.110.102Alert	100.10.110.10	TCP	525	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.55) on Non-TLS Port
+13:25:25.982	100.10.110.10Alert	100.10.110.101	TCP	525	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.55) on Non-TLS Port
+13:25:25.982	100.10.110.102Alert	100.10.110.10	TCP	850	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.72) on Non-TLS Port
+13:25:25.982	100.10.110.10Alert	100.10.110.101	TCP	850	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.72) on Non-TLS Port
+13:25:25.983	100.10.110.102Alert	100.10.110.10	TCP	1741	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.87) on Non-TLS Port
+13:25:25.983	100.10.110.102Alert	100.10.110.10	TCP	1090	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.82) on Non-TLS Port
+13:25:25.983	100.10.110.10Alert	100.10.110.101	TCP	1741	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.87) on Non-TLS Port
+13:25:25.983	100.10.110.10Alert	100.10.110.101	TCP	1090	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.82) on Non-TLS Port
+13:25:26.069	100.10.110.102Alert	100.10.110.10	TCP	580	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.62) on Non-TLS Port
+13:25:26.069	100.10.110.10Alert	100.10.110.101	TCP	580	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.62) on Non-TLS Port
+13:25:26.069	100.10.110.102Alert	100.10.110.10	TCP	906	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
+13:25:26.070	100.10.110.10Alert	100.10.110.101	TCP	906	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
+13:25:26.091	100.10.110.102Alert	100.10.110.10	TCP	927	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
+13:25:26.091	100.10.110.102Alert	100.10.110.10	TCP	602	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.65) on Non-TLS Port
+13:25:26.091	100.10.110.10Alert	100.10.110.101	TCP	602	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.65) on Non-TLS Port
+13:25:26.091	100.10.110.10Alert	100.10.110.101	TCP	927	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
+13:25:26.139	100.10.110.102Alert	100.10.110.10	TCP	1022	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.78) on Non-TLS Port
+13:25:26.139	100.10.110.10Alert	100.10.110.101	TCP	1022	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.78) on Non-TLS Port
+13:25:26.139	100.10.110.102Alert	100.10.110.10	TCP	737	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.68) on Non-TLS Port
+13:25:26.139	100.10.110.10Alert	100.10.110.101	TCP	737	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.68) on Non-TLS Port
+13:25:26.144	100.10.110.102Alert	100.10.110.10	TCP	906	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.79) on Non-TLS Port
+13:25:26.144	100.10.110.102Alert	100.10.110.10	TCP	580	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.63) on Non-TLS Port
+13:25:26.144	100.10.110.10Alert	100.10.110.101	TCP	906	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.79) on Non-TLS Port
+13:25:26.144	100.10.110.10Alert	100.10.110.101	TCP	580	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.63) on Non-TLS Port
+13:25:26.151	100.10.110.102Alert	100.10.110.10	TCP	561	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.54) on Non-TLS Port
+13:25:26.151	100.10.110.102Alert	100.10.110.10	TCP	887	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.74) on Non-TLS Port
+13:25:26.151	100.10.110.10Alert	100.10.110.101	TCP	561	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.54) on Non-TLS Port
+13:25:26.151	100.10.110.10Alert	100.10.110.101	TCP	887	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.74) on Non-TLS Port
+13:25:26.155	100.10.110.102Alert	100.10.110.10	TCP	932	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.8) on Non-TLS Port
+13:25:26.155	100.10.110.10Alert	100.10.110.101	TCP	932	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.8) on Non-TLS Port
+13:25:26.155	100.10.110.102Alert	100.10.110.10	TCP	704	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.7) on Non-TLS Port
+13:25:26.155	100.10.110.10Alert	100.10.110.101	TCP	704	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.7) on Non-TLS Port
+13:25:26.159	100.10.110.102Alert	100.10.110.10	TCP	944	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.74) on Non-TLS Port
+13:25:26.159	100.10.110.102Alert	100.10.110.10	TCP	615	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.62) on Non-TLS Port
+13:25:26.159	100.10.110.10Alert	100.10.110.101	TCP	944	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.74) on Non-TLS Port
+13:25:26.159	100.10.110.10Alert	100.10.110.101	TCP	615	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.62) on Non-TLS Port
+13:25:26.199	100.10.110.100Alert	100.10.110.10	TCP	655	SVC: Kubernetes-API | Flags: [PA] | Win: 2338 | ⚠️ High Entropy Payload (7.66) on Non-TLS Port
+13:25:26.199	100.10.110.10Alert	100.10.110.102	TCP	655	SVC: Kubernetes-API | Flags: [PA] | Win: 2338 | ⚠️ High Entropy Payload (7.66) on Non-TLS Port
+13:25:26.280	100.10.110.102Alert	100.10.110.10	TCP	547	SVC: Kubernetes-API | Flags: [PA] | Win: 249 | ⚠️ High Entropy Payload (7.51) on Non-TLS Port
+13:25:26.280	100.10.110.10Alert	100.10.110.102	TCP	547	SVC: Kubernetes-API | Flags: [PA] | Win: 249 | ⚠️ High Entropy Payload (7.51) on Non-TLS Port
+13:25:26.285	100.10.110.100Alert	100.10.110.10	TCP	655	SVC: Kubernetes-API | Flags: [PA] | Win: 2332 | ⚠️ High Entropy Payload (7.67) on Non-TLS Port
+13:25:26.285	100.10.110.10Alert	100.10.110.100	TCP	655	SVC: Kubernetes-API | Flags: [PA] | Win: 2332 | ⚠️ High Entropy Payload (7.67) on Non-TLS Port
+13:25:26.292	100.10.110.102Alert	100.10.110.10	TCP	594	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.62) on Non-TLS Port
+13:25:26.292	100.10.110.10Alert	100.10.110.101	TCP	594	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.62) on Non-TLS Port
+13:25:26.334	100.10.110.102Alert	100.10.110.10	TCP	619	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.61) on Non-TLS Port
+13:25:26.334	100.10.110.102Alert	100.10.110.10	TCP	944	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.75) on Non-TLS Port
+13:25:26.334	100.10.110.10Alert	100.10.110.101	TCP	619	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.61) on Non-TLS Port
+13:25:26.334	100.10.110.10Alert	100.10.110.101	TCP	944	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.75) on Non-TLS Port
+13:25:26.336	100.10.110.100Alert	100.10.110.10	TCP	609	SVC: Kubernetes-API | Flags: [PA] | Win: 1361 | ⚠️ High Entropy Payload (7.62) on Non-TLS Port
+13:25:26.336	100.10.110.10Alert	100.10.110.102	TCP	718	SVC: Kubernetes-API | Flags: [PA] | Win: 2871 | ⚠️ High Entropy Payload (7.67) on Non-TLS Port
+13:25:26.338	100.10.110.102Alert	100.10.110.10	TCP	959	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.78) on Non-TLS Port
+13:25:26.338	100.10.110.102Alert	100.10.110.10	TCP	629	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.65) on Non-TLS Port
+13:25:26.338	100.10.110.10Alert	100.10.110.101	TCP	959	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.78) on Non-TLS Port
+13:25:26.338	100.10.110.10Alert	100.10.110.101	TCP	629	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.65) on Non-TLS Port
+13:25:26.338	100.10.110.102Alert	100.10.110.10	TCP	609	SVC: Kubernetes-API | Flags: [PA] | Win: 249 | ⚠️ High Entropy Payload (7.64) on Non-TLS Port
+13:25:26.338	100.10.110.10Alert	100.10.110.100	TCP	676	SVC: Kubernetes-API | Flags: [PA] | Win: 240 | ⚠️ High Entropy Payload (7.7) on Non-TLS Port
+13:25:26.591	100.10.110.102Alert	100.10.110.10	TCP	918	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.73) on Non-TLS Port
+13:25:26.591	100.10.110.102Alert	100.10.110.10	TCP	592	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.58) on Non-TLS Port
+13:25:26.591	100.10.110.10Alert	100.10.110.101	TCP	918	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.73) on Non-TLS Port
+13:25:26.591	100.10.110.10Alert	100.10.110.101	TCP	592	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.58) on Non-TLS Port
+13:25:26.592	100.10.110.102Alert	100.10.110.10	TCP	912	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.78) on Non-TLS Port
+13:25:26.593	100.10.110.102Alert	100.10.110.10	TCP	587	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.53) on Non-TLS Port
+13:25:26.593	100.10.110.10Alert	100.10.110.101	TCP	912	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.78) on Non-TLS Port
+13:25:26.593	100.10.110.10Alert	100.10.110.101	TCP	587	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.53) on Non-TLS Port
+13:25:26.602	100.10.110.102Alert	100.10.110.10	TCP	616	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.62) on Non-TLS Port
+13:25:26.602	100.10.110.10Alert	100.10.110.101	TCP	616	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.62) on Non-TLS Port
+13:25:26.678	100.10.110.102Alert	100.10.110.10	TCP	603	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.59) on Non-TLS Port
+13:25:26.678	100.10.110.10Alert	100.10.110.101	TCP	603	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.59) on Non-TLS Port
+13:25:26.729	100.10.110.102Alert	100.10.110.10	TCP	582	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.64) on Non-TLS Port
+13:25:26.729	100.10.110.102Alert	100.10.110.10	TCP	907	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.75) on Non-TLS Port
+13:25:26.729	100.10.110.10Alert	100.10.110.101	TCP	582	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.64) on Non-TLS Port
+13:25:26.729	100.10.110.10Alert	100.10.110.101	TCP	907	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.75) on Non-TLS Port
+13:25:26.731	100.10.110.102Alert	100.10.110.10	TCP	616	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.56) on Non-TLS Port
+13:25:26.731	100.10.110.102Alert	100.10.110.10	TCP	941	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.78) on Non-TLS Port
+13:25:26.731	100.10.110.10Alert	100.10.110.101	TCP	616	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.56) on Non-TLS Port
+13:25:26.731	100.10.110.10Alert	100.10.110.101	TCP	941	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.78) on Non-TLS Port
+13:25:26.808	100.10.110.102Alert	100.10.110.10	TCP	856	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.78) on Non-TLS Port
+13:25:26.808	100.10.110.102Alert	100.10.110.10	TCP	531	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.59) on Non-TLS Port
+13:25:26.808	100.10.110.10Alert	100.10.110.101	TCP	531	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.59) on Non-TLS Port
+13:25:26.808	100.10.110.10Alert	100.10.110.101	TCP	856	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.78) on Non-TLS Port
+13:25:26.817	100.10.110.102Alert	100.10.110.10	TCP	871	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.74) on Non-TLS Port
+13:25:26.817	100.10.110.102Alert	100.10.110.10	TCP	544	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.6) on Non-TLS Port
+13:25:26.817	100.10.110.10Alert	100.10.110.101	TCP	871	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.74) on Non-TLS Port
+13:25:26.817	100.10.110.10Alert	100.10.110.101	TCP	544	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.6) on Non-TLS Port
+13:25:26.838	100.10.110.102Alert	100.10.110.10	TCP	608	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.58) on Non-TLS Port
+13:25:26.838	100.10.110.10Alert	100.10.110.101	TCP	608	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.58) on Non-TLS Port
+13:25:26.838	100.10.110.102Alert	100.10.110.10	TCP	932	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
+13:25:26.838	100.10.110.10Alert	100.10.110.101	TCP	932	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
+13:25:26.867	100.10.110.102Alert	100.10.110.10	TCP	591	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.6) on Non-TLS Port
+13:25:26.867	100.10.110.102Alert	100.10.110.10	TCP	916	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
+13:25:26.868	100.10.110.10Alert	100.10.110.101	TCP	591	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.6) on Non-TLS Port
+13:25:26.868	100.10.110.10Alert	100.10.110.101	TCP	916	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
+13:25:26.945	100.10.110.102Alert	100.10.110.10	TCP	917	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.77) on Non-TLS Port
+13:25:26.945	100.10.110.102Alert	100.10.110.10	TCP	592	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.6) on Non-TLS Port
+13:25:26.945	100.10.110.10Alert	100.10.110.101	TCP	917	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.77) on Non-TLS Port
+13:25:26.945	100.10.110.10Alert	100.10.110.101	TCP	592	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.6) on Non-TLS Port
+13:25:26.955	100.10.110.100Alert	100.10.110.10	TCP	2962	SVC: Kubernetes-API | Flags: [PA] | Win: 204 | ⚠️ High Entropy Payload (7.94) on Non-TLS Port
+13:25:26.955	100.10.110.100Alert	100.10.110.10	TCP	2676	SVC: Kubernetes-API | Flags: [PA] | Win: 204 | ⚠️ High Entropy Payload (7.93) on Non-TLS Port
+13:25:26.955	100.10.110.10Alert	100.10.110.112	TCP	2962	SVC: Kubernetes-API | Flags: [PA] | Win: 2342 | ⚠️ High Entropy Payload (7.94) on Non-TLS Port
+13:25:26.955	100.10.110.10Alert	100.10.110.112	TCP	2676	SVC: Kubernetes-API | Flags: [PA] | Win: 2342 | ⚠️ High Entropy Payload (7.93) on Non-TLS Port
+13:25:26.958	100.10.110.100Alert	100.10.110.10	TCP	2296	SVC: Kubernetes-API | Flags: [PA] | Win: 204 | ⚠️ High Entropy Payload (7.91) on Non-TLS Port
+13:25:26.958	100.10.110.10Alert	100.10.110.112	TCP	2421	SVC: Kubernetes-API | Flags: [PA] | Win: 2342 | ⚠️ High Entropy Payload (7.91) on Non-TLS Port
+13:25:26.959	100.10.110.100Alert	100.10.110.10	TCP	3509	SVC: Kubernetes-API | Flags: [PA] | Win: 204 | ⚠️ High Entropy Payload (7.94) on Non-TLS Port
+13:25:26.960	100.10.110.10Alert	100.10.110.112	TCP	3581	SVC: Kubernetes-API | Flags: [PA] | Win: 2342 | ⚠️ High Entropy Payload (7.94) on Non-TLS Port
+13:25:26.961	100.10.110.100Alert	100.10.110.10	TCP	2304	SVC: Kubernetes-API | Flags: [PA] | Win: 204 | ⚠️ High Entropy Payload (7.92) on Non-TLS Port
+13:25:26.961	100.10.110.10Alert	100.10.110.112	TCP	2304	SVC: Kubernetes-API | Flags: [PA] | Win: 2342 | ⚠️ High Entropy Payload (7.92) on Non-TLS Port
+13:25:27.065	100.10.110.102Alert	100.10.110.10	TCP	604	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.64) on Non-TLS Port
+13:25:27.065	100.10.110.10Alert	100.10.110.101	TCP	604	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.64) on Non-TLS Port
+13:25:27.079	100.10.110.101Alert	100.10.110.10	TCP	547	SVC: Kubernetes-API | Flags: [PA] | Win: 25037 | ⚠️ High Entropy Payload (7.63) on Non-TLS Port
+13:25:27.079	100.10.110.10Alert	100.10.110.102	TCP	745	SVC: Kubernetes-API | Flags: [PA] | Win: 25040 | ⚠️ High Entropy Payload (7.74) on Non-TLS Port
+13:25:27.081	100.10.110.102Alert	100.10.110.10	TCP	893	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.75) on Non-TLS Port
+13:25:27.081	100.10.110.102Alert	100.10.110.10	TCP	567	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.53) on Non-TLS Port
+13:25:27.081	100.10.110.10Alert	100.10.110.101	TCP	567	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.53) on Non-TLS Port
+13:25:27.082	100.10.110.10Alert	100.10.110.101	TCP	893	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.75) on Non-TLS Port
+13:25:27.082	100.10.110.102Alert	100.10.110.10	TCP	547	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.52) on Non-TLS Port
+13:25:27.082	100.10.110.10Alert	100.10.110.101	TCP	547	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.52) on Non-TLS Port
+13:25:27.146	100.10.110.100Alert	100.10.110.10	TCP	3507	SVC: Kubernetes-API | Flags: [PA] | Win: 249 | ⚠️ High Entropy Payload (7.94) on Non-TLS Port
+13:25:27.146	100.10.110.10Alert	100.10.110.110	TCP	3507	SVC: Kubernetes-API | Flags: [PA] | Win: 2398 | ⚠️ High Entropy Payload (7.94) on Non-TLS Port
+13:25:27.148	100.10.110.100Alert	100.10.110.10	TCP	2303	SVC: Kubernetes-API | Flags: [PA] | Win: 249 | ⚠️ High Entropy Payload (7.93) on Non-TLS Port
+13:25:27.148	100.10.110.10Alert	100.10.110.110	TCP	2303	SVC: Kubernetes-API | Flags: [PA] | Win: 2398 | ⚠️ High Entropy Payload (7.93) on Non-TLS Port
+13:25:27.150	100.10.110.100Alert	100.10.110.10	TCP	3519	SVC: Kubernetes-API | Flags: [PA] | Win: 249 | ⚠️ High Entropy Payload (7.95) on Non-TLS Port
+13:25:27.150	100.10.110.10Alert	100.10.110.110	TCP	3519	SVC: Kubernetes-API | Flags: [PA] | Win: 2398 | ⚠️ High Entropy Payload (7.95) on Non-TLS Port
+13:25:27.152	100.10.110.100Alert	100.10.110.10	TCP	2307	SVC: Kubernetes-API | Flags: [PA] | Win: 249 | ⚠️ High Entropy Payload (7.91) on Non-TLS Port
+13:25:27.152	100.10.110.10Alert	100.10.110.110	TCP	2307	SVC: Kubernetes-API | Flags: [PA] | Win: 2398 | ⚠️ High Entropy Payload (7.91) on Non-TLS Port
+13:25:27.175	100.10.110.102Alert	100.10.110.10	TCP	983	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.77) on Non-TLS Port
+13:25:27.175	100.10.110.102Alert	100.10.110.10	TCP	657	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.66) on Non-TLS Port
+13:25:27.175	100.10.110.10Alert	100.10.110.101	TCP	657	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.66) on Non-TLS Port
+13:25:27.175	100.10.110.10Alert	100.10.110.101	TCP	983	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.77) on Non-TLS Port
+13:25:27.175	100.10.110.102Alert	100.10.110.10	TCP	650	SVC: Kubernetes-API | Flags: [PA] | Win: 2324 | ⚠️ High Entropy Payload (7.64) on Non-TLS Port
+13:25:27.175	100.10.110.10Alert	100.10.110.101	TCP	650	SVC: Kubernetes-API | Flags: [PA] | Win: 867 | ⚠️ High Entropy Payload (7.64) on Non-TLS Port
+13:25:27.175	100.10.110.102Alert	100.10.110.10	TCP	976	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
+13:25:27.175	100.10.110.10Alert	100.10.110.101	TCP	976	SVC: Kubernetes-API | Flags: [PA] | Win: 2333 | ⚠️ High Entropy Payload (7.76) on Non-TLS Port
