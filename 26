@@ -1,0 +1,190 @@
+
+Expert Security Intelligence Report
+Analysis Engine: Advanced LLM Integrated | Ref: #0ZGDJZ
+
+Threat Score
+
+92
+CRITICAL THREAT
+01
+패킷 데이터 개요 (Analysis Summary)
+트래픽 프로파일링 (위험도)
+CRITICAL
+
+진단 시스템 상태
+DPI 병렬 처리 완료
+
+02
+전문가 진단 리포트 (Technical Deep-Dive)
+확인된 사실(Confirmed Findings)에 따르면, 100.100.100.101:766과 100.100.100.10:2049 간 TCP 플로우에서 Duplicate ACK이 양방향으로 총 46건(25+21) 발생하여 패킷 유실 또는 Out-of-Order로 인한 TCP 성능 저하가 확인되었습니다. 전체 패킷 48,859개 중 TCP가 99.6%(48,685개)를 차지하며, S/SA/FA 플래그가 각각 72/72/144건으로 정상적인 3-way Handshake 및 연결 종료는 이루어졌으나 RST/SYN Drop은 관찰되지 않았습니다. 반면 PA(27,893개)와 A(20,504개)의 압도적인 비율은 지속적이고 대용량인 데이터 전송을 의미합니다. 이상 징후 110건 중 SQL Injection(54건), Directory Traversal(21건), Cleartext Credentials Exposed(29건)이 집중적으로 탐지되었습니다. 원시 샘플 페이로드 분석 결과, 'proxmox-node3', 'kube-scheduler', 'authentication.kubernetes.io/credential-id', 'pgadmin' 세션 로그 및 Kubernetes API 응답(JSON 구조)이 평문으로 노출되고 있습니다. 이는 포트 2049(NFS 기본 포트)에 Kubernetes/Proxmox 클러스터 관리 API 또는 로깅 에이전트가 비정상적으로 매핑되어, 암호화 없이 대용량(최대 59,434바이트) 페이로드를 전송하면서 시그니처 엔진이 JSON/로그 패턴을 웹 공격 시그니처로 탐지하거나 실제 내부 스캐닝이 발생하고 있음을 시사합니다. Cleartext Credentials 29건 노출은 즉각적인 권한 탈취 리스크를 초래하며, 대용량 패킷 전송으로 인한 TCP 버퍼 혼잡이 Duplicate ACK 과다 발생의 근본 원인(Root Cause)으로 작용하고 있습니다.
+03
+대응 권고 및 해결 방안 (Recommendations)
+1
+포트 2049에서 실행 중인 비표준 서비스(Kubernetes/Proxmox API 또는 로깅 에이전트)를 식별하고, NFS 전용으로 분리하거나 표준 API 포트(6443 등)로 재매핑하십시오.
+
+2
+Cleartext Credentials 노출 방지를 위해 내부 서비스 간 통신에 mTLS/TLS 암호화를 강제 적용하고, Kubernetes Secrets 또는 HashiCorp Vault를 활용한 시크릿 관리 정책을 즉시 도입하십시오.
+
+3
+Duplicate ACK 과다로 인한 TCP 성능 저하 해소를 위해, 서버 측 TCP Window Size를 최적화하고, 대용량 페이로드 전송 시 애플리케이션 레벨의 압축 또는 청크 전송(Chunked Transfer)을 검토하십시오.
+
+4
+SQL Injection 및 Directory Traversal 시그니처 탐지 건(75건)에 대해 WAF/IDS 로그와 애플리케이션 접근 로그를 교차 검증하여, 실제 외부 공격인지 내부 로깅 패턴에 의한 False Positive인지 명확히 구분하십시오.
+
+5
+100.100.100.10/101/11/12 노드 간 트래픽을 VLAN 또는 Cloud Security Group으로 격리하고, 포트 2049에 대한 불필요한 외부/내부 접근을 방화벽 규칙으로 차단하십시오.
+
+Protocol Distribution
+Traffic Intensity (PPS)
+L3/L4 Packet Flow Sequence
+Visualization of Samples
+100.100.100.11
+100.100.100.101
+100.100.100.10
+100.100.100.102
+100.100.100.11
+100.100.100.101
+100.100.100.10
+100.100.100.102
+TCP (11650B)
+1
+TCP (2962B)
+2
+TCP (7306B)
+3
+TCP (2962B)
+4
+TCP (1402B)
+5
+TCP (4802B)
+6
+TCP (2962B)
+7
+TCP (2962B)
+8
+TCP (7306B)
+9
+TCP (59434B)
+10
+TCP (5858B)
+11
+TCP (46402B)
+12
+TCP (10202B)
+13
+TCP (2962B)
+14
+TCP (29026B)
+15
+Anomaly/Raw Inspection Samples
+Time	Source	Destination	Prot	Len	Dissection
+12:53:23.190	100.100.100.102Alert	100.100.100.10	TCP	11650	SVC: Unknown (TCP 823 -> 2049) | Flags: [PA] | Win: 21711 | ⚠️ Directory Traversal Signature detected
+12:53:23.754	100.100.100.102Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 823 -> 2049) | Flags: [PA] | Win: 21711 | ⚠️ SQL Injection Signature detected
+12:53:23.831	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 22893 | ⚠️ SQL Injection Signature detected
+12:53:24.730	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12315 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:24.730	100.100.100.11Alert	100.100.100.10	TCP	1402	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12315 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:25.096	100.100.100.11Alert	100.100.100.10	TCP	4802	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12315 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:25.109	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12315 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:25.123	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12315 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:25.131	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 22896 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:25.131	100.100.100.101Alert	100.100.100.10	TCP	59434	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 22896 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:25.131	100.100.100.101Alert	100.100.100.10	TCP	5858	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 22896 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:25.131	100.100.100.101Alert	100.100.100.10	TCP	46402	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 22896 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:25.131	100.100.100.101Alert	100.100.100.10	TCP	10202	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 22896 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:25.829	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12315 | ⚠️ SQL Injection Signature detected
+12:53:27.113	100.100.100.101Alert	100.100.100.10	TCP	29026	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 22896 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:27.666	100.100.100.101Alert	100.100.100.10	TCP	13098	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 22509 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:27.666	100.100.100.101Alert	100.100.100.10	TCP	26130	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 22509 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:28.623	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21760 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:28.830	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21760 | ⚠️ SQL Injection Signature detected
+12:53:31.408	100.100.100.12Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 790 -> 2049) | Flags: [PA] | Win: 16341 | ⚠️ Directory Traversal Signature detected
+12:53:31.409	100.100.100.12Alert	100.100.100.10	TCP	4410	SVC: Unknown (TCP 790 -> 2049) | Flags: [PA] | Win: 16341 | ⚠️ Directory Traversal Signature detected
+12:53:32.080	100.100.100.101Alert	100.100.100.10	TCP	11650	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21760 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:32.080	100.100.100.101Alert	100.100.100.10	TCP	27578	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21760 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:33.823	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.824	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.824	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.824	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.824	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.825	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.830	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21760 | ⚠️ SQL Injection Signature detected
+12:53:33.831	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.831	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.834	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.835	100.100.100.10Alert	100.100.100.11	TCP	206	SVC: Unknown (TCP 2049 -> 939) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.836	100.100.100.10Alert	100.100.100.11	TCP	206	SVC: Unknown (TCP 2049 -> 939) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.836	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.836	100.100.100.10Alert	100.100.100.101	TCP	346	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.836	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:33.836	100.100.100.10Alert	100.100.100.101	TCP	206	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:35.280	100.100.100.101Alert	100.100.100.10	TCP	5858	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21760 | ⚠️ Directory Traversal Signature detected
+12:53:35.280	100.100.100.101Alert	100.100.100.10	TCP	17442	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21760 | ⚠️ Directory Traversal Signature detected
+12:53:35.281	100.100.100.101Alert	100.100.100.10	TCP	15994	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21760 | ⚠️ Directory Traversal Signature detected
+12:53:35.281	100.100.100.101Alert	100.100.100.10	TCP	24682	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21760 | ⚠️ Directory Traversal Signature detected
+12:53:35.401	100.100.100.11Alert	100.100.100.10	TCP	4410	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12348 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:35.664	100.100.100.101Alert	100.100.100.10	TCP	8754	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21760 | ⚠️ Directory Traversal Signature detected
+12:53:35.665	100.100.100.101Alert	100.100.100.10	TCP	18890	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21760 | ⚠️ Directory Traversal Signature detected
+12:53:35.718	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12348 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:35.791	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:36.859	100.100.100.101Alert	100.100.100.10	TCP	34818	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:36.860	100.100.100.101Alert	100.100.100.10	TCP	47850	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:37.490	100.100.100.10Alert	100.100.100.101	TCP	4294	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ SQL Injection Signature detected
+12:53:37.519	100.100.100.101Alert	100.100.100.10	TCP	4410	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.541	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21573 | ⚠️ SQL Injection Signature detected
+12:53:37.560	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.560	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21499 | ⚠️ SQL Injection Signature detected
+12:53:37.562	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.562	100.100.100.101Alert	100.100.100.10	TCP	1514	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.565	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.566	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.566	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.569	100.100.100.10Alert	100.100.100.101	TCP	65226	SVC: Unknown (TCP 2049 -> 766) | Flags: [A] | Win: 24576 | ⚠️ Shellcode/Command Exec Signature detected
+12:53:37.574	100.100.100.10Alert	100.100.100.101	TCP	12614	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:37.589	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.606	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.606	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.606	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.613	100.100.100.101Alert	100.100.100.10	TCP	1406	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.614	100.100.100.101Alert	100.100.100.10	TCP	1406	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.614	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.614	100.100.100.101Alert	100.100.100.10	TCP	4410	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.617	100.100.100.101Alert	100.100.100.10	TCP	1406	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.619	100.100.100.101Alert	100.100.100.10	TCP	1406	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.640	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.640	100.100.100.101Alert	100.100.100.10	TCP	1514	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.676	100.100.100.101Alert	100.100.100.10	TCP	4410	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.677	100.100.100.101Alert	100.100.100.10	TCP	1514	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.677	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.677	100.100.100.101Alert	100.100.100.10	TCP	1514	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.743	100.100.100.101Alert	100.100.100.10	TCP	4410	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.793	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:37.863	100.100.100.101Alert	100.100.100.10	TCP	13098	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ Directory Traversal Signature detected
+12:53:37.864	100.100.100.101Alert	100.100.100.10	TCP	15994	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ Directory Traversal Signature detected
+12:53:37.930	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ Directory Traversal Signature detected
+12:53:37.931	100.100.100.101Alert	100.100.100.10	TCP	14546	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ Directory Traversal Signature detected
+12:53:37.931	100.100.100.101Alert	100.100.100.10	TCP	13098	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ Directory Traversal Signature detected
+12:53:38.229	100.100.100.11Alert	100.100.100.10	TCP	7306	SVC: Unknown (TCP 939 -> 2049) | Flags: [A] | Win: 12348 | ⚠️ Directory Traversal Signature detected
+12:53:38.229	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12348 | ⚠️ Directory Traversal Signature detected
+12:53:38.831	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:40.761	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12767 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:40.991	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12767 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:41.073	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 12767 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:43.050	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:43.384	100.100.100.10Alert	100.100.100.101	TCP	4298	SVC: Unknown (TCP 2049 -> 766) | Flags: [A] | Win: 24567 | ⚠️ SQL Injection Signature detected
+12:53:43.384	100.100.100.10Alert	100.100.100.101	TCP	53442	SVC: Unknown (TCP 2049 -> 766) | Flags: [A] | Win: 24576 | ⚠️ Directory Traversal Signature detected
+12:53:43.384	100.100.100.10Alert	100.100.100.101	TCP	65226	SVC: Unknown (TCP 2049 -> 766) | Flags: [A] | Win: 24576 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:43.831	100.100.100.101Alert	100.100.100.10	TCP	11650	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:46.089	100.100.100.11Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 13023 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:46.283	100.100.100.11Alert	100.100.100.10	TCP	1066	SVC: Unknown (TCP 939 -> 2049) | Flags: [PA] | Win: 13023 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:47.868	100.100.100.102Alert	100.100.100.10	TCP	21786	SVC: Unknown (TCP 823 -> 2049) | Flags: [A] | Win: 21689 | ⚠️ Directory Traversal Signature detected
+12:53:48.169	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ Cleartext Credentials Exposed (Security Risk)
+12:53:48.831	100.100.100.101Alert	100.100.100.10	TCP	8754	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:49.107	100.100.100.101Alert	100.100.100.10	TCP	2962	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ SQL Injection Signature detected
+12:53:50.172	100.100.100.101Alert	100.100.100.10	TCP	7306	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ Directory Traversal Signature detected
+12:53:50.173	100.100.100.101Alert	100.100.100.10	TCP	21786	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21632 | ⚠️ Directory Traversal Signature detected
+12:53:50.173	100.100.100.101Alert	100.100.100.10	TCP	11650	SVC: Unknown (TCP 766 -> 2049) | Flags: [PA] | Win: 21632 | ⚠️ Directory Traversal Signature detected
+12:53:32.601	100.100.100.11Alert	100.100.100.10	TCP	5858	SVC: Unknown (TCP 939 -> 2049) | Flags: [A] | Win: 12348 | ⚠️ High Entropy Payload (7.61) on Non-TLS Port
+12:53:34.347	100.100.100.101Alert	100.100.100.10	TCP	39162	SVC: Unknown (TCP 766 -> 2049) | Flags: [A] | Win: 21760 | ⚠️ High Entropy Payload (7.61) on Non-TLS Port
+12:53:34.998	100.100.100.10Alert	100.100.100.101	TCP	61638	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ High Entropy Payload (7.81) on Non-TLS Port
+12:53:34.998	100.100.100.10Alert	100.100.100.101	TCP	65226	SVC: Unknown (TCP 2049 -> 766) | Flags: [A] | Win: 24576 | ⚠️ High Entropy Payload (7.62) on Non-TLS Port
+12:53:34.998	100.100.100.10Alert	100.100.100.101	TCP	4538	SVC: Unknown (TCP 2049 -> 766) | Flags: [PA] | Win: 24576 | ⚠️ High Entropy Payload (7.9)
