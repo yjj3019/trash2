@@ -1,0 +1,55 @@
+=== 풀 카드 렌더 (할당/전체 텍스트 그리는 곳) ===
+5736:      <div style="font-size:10px;color:var(--txt-muted);margin-bottom:3px;">${physTotal ? `할당 ${fmtBytes(p.total_bytes)} / 전체 ${fmtBytes(physTotal)} · ${(p.provisioner||'').includes('hostpath') ? `실여유 ${fmtBytes(p.disk_available||0)}` : `할당가능 ${fmtBytes(freeBytes)}`}` : `Used ${fmtBytes(p.used_bytes)} / ${fmtBytes(p.total_bytes)}`}</div>
+      <div style="font-size:10px;color:var(--txt-muted);margin-bottom:3px;">${physTotal ? `할당 ${fmtBytes(p.total_bytes)} / 전체 ${fmtBytes(physTotal)} · ${(p.provisioner||'').includes('hostpath') ? `실여유 ${fmtBytes(p.disk_available||0)}` : `할당가능 ${fmtBytes(freeBytes)}`}` : `Used ${fmtBytes(p.used_bytes)} / ${fmtBytes(p.total_bytes)}`}</div>
+--- 풀 카드 렌더 함수 주변 (위 grep 라인 -25 ~ +15 범위를 sed로) ---
+          ${cap ? `<div style="font-size:10px;color:var(--txt-muted);">/ ${fmtBytes(cap)}</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div class="pbar" style="flex:1;"><div class="pbar-fill" style="background:#34d399;width:${pct}%"></div></div>
+      </div>
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:16px;">
+    <div style="color:var(--txt-muted);font-size:12px;margin-bottom:8px;">VM 디스크 사용량 데이터 없음</div>
+    <div style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.18);border-radius:7px;padding:10px;font-size:11px;color:#34d399;text-align:left;">
+      <div style="color:var(--txt-secondary);line-height:1.8;">
+        QEMU Guest Agent가 설치된 Running VM의 게스트 내부 실제 디스크 사용량을 표시합니다.<br>
+        Agent 미설치 또는 정지된 VM은 집계에서 제외됩니다.
+      </div>
+    </div>
+  </div>`;
+
+  // ── Storage Pools ────────────────────────────────────────────
+  document.getElementById('storage-pools').innerHTML = st.pools.map(p => {
+    const physTotal = p.disk_capacity || 0;
+    const freeBytes = physTotal ? Math.max(physTotal - p.total_bytes, 0) : 0;
+    const usedPct = physTotal ? Math.round(p.total_bytes / physTotal * 100)
+                              : (p.total_bytes ? Math.round(p.used_bytes / p.total_bytes * 100) : 0);
+    return `<div class="card-sm">
+      <div style="font-size:12px;font-weight:600;color:var(--txt-primary);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
+      <div style="font-size:10px;color:var(--txt-muted);margin-bottom:8px;">${p.provisioner}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px;">
+        <div class="card-sm" style="text-align:center;padding:6px;"><div style="font-size:10px;color:var(--txt-muted);">PVs</div><div style="font-weight:700;">${p.pv_count}</div></div>
+        <div class="card-sm" style="text-align:center;padding:6px;"><div style="font-size:10px;color:var(--txt-muted);">PVCs</div><div style="font-weight:700;">${p.pvc_count}</div></div>
+      </div>
+      <div style="font-size:10px;color:var(--txt-muted);margin-bottom:3px;">${physTotal ? `할당 ${fmtBytes(p.total_bytes)} / 전체 ${fmtBytes(physTotal)} · ${(p.provisioner||'').includes('hostpath') ? `실여유 ${fmtBytes(p.disk_available||0)}` : `할당가능 ${fmtBytes(freeBytes)}`}` : `Used ${fmtBytes(p.used_bytes)} / ${fmtBytes(p.total_bytes)}`}</div>
+      <div class="pbar"><div class="pbar-fill ${pbarColor(usedPct)}" style="width:${usedPct}%"></div></div>
+    </div>`;
+  }).join('') || '<div style="color:var(--txt-muted);font-size:12px;">스토리지 풀 없음</div>';
+
+  document.getElementById('tbody-pvs').innerHTML = st.pvs.map(p =>
+    `<tr><td class="mono" style="font-size:11px;">${p.Name}</td><td>${p.Capacity}</td>
+     <td><span class="badge ${p.Status==='Bound'?'badge-ok':'badge-warn'}">${p.Status}</span></td>
+     <td style="font-size:10px;color:var(--txt-muted);">${p.StorageClass}</td>
+     <td style="font-size:10px;color:var(--txt-muted);">${p.Claim}</td></tr>`
+  ).join('');
+
+  document.getElementById('tbody-pvcs').innerHTML = st.pvcs.map(p =>
+    `<tr><td class="mono" style="font-size:11px;">${p.Name}</td>
+     <td><span class="badge badge-off">${p.Namespace}</span></td>
+     <td><span class="badge ${p.Status==='Bound'?'badge-ok':'badge-warn'}">${p.Status}</span></td>
+
+=== hpp 실여유 0 확인 — API 현재값 ===
+hpp-sc | alloc: None | cap: None | avail: None
+nfs-iso | alloc: None | cap: None | avail: None
+nfs-vm | alloc: None | cap: None | avail: None
