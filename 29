@@ -1,0 +1,107 @@
+=== 1) phys 산출부 (_last_pool_phys 폴백이 실제로 있는지/어떻게 동작하는지) ===
+(_last_pool_phys 첫 등장: 1584)
+        try:
+            pj = json.dumps(self._api_get("/api/v1/persistentvolumes"))
+            if pj:
+                for pv in json.loads(pj).get("items", []):
+                    name = pv["metadata"]["name"]
+                    cs = pv.get("spec", {}).get("capacity", {}).get("storage", "0")
+                    cb = self._parse_bytes(cs)
+                    total_pv += cb
+                    status = pv.get("status", {}).get("phase", "Unknown")
+                    cr = pv.get("spec", {}).get("claimRef", {})
+                    claim = f"{cr.get('namespace','')}/{cr.get('name','')}" if cr else "Unbound"
+                    sc_name = pv.get("spec", {}).get("storageClassName", "Unknown")
+                    if sc_name not in pools:
+                        pools[sc_name] = StoragePoolDetail(name=sc_name, provisioner="Implicit/Unknown")
+                    pool = pools[sc_name]
+                    pool.pv_count += 1
+                    pool.total_capacity_bytes += cb
+                    if status == "Bound": pool.used_capacity_bytes += cb
+                    pv_data.append({"Name": name, "Capacity": cs, "Status": status,
+                                    "Claim": claim, "StorageClass": sc_name,
+                                    "Age": self._fmt_age(pv["metadata"]["creationTimestamp"])})
+        except Exception as e:
+            logger.warning("PV: %s", e)
+
+        pvc_data = []
+        total_pvc = 0
+        try:
+            pcj = json.dumps(self._api_get("/api/v1/persistentvolumeclaims"))
+            if pcj:
+                for pvc in json.loads(pcj).get("items", []):
+                    name = pvc["metadata"]["name"]
+                    ns = pvc["metadata"]["namespace"]
+                    status = pvc.get("status", {}).get("phase", "Unknown")
+                    sc = pvc.get("spec", {}).get("storageClassName", "Unknown")
+                    req = pvc.get("spec", {}).get("resources", {}).get("requests", {}).get("storage", "0")
+                    total_pvc += self._parse_bytes(req)
+                    if sc in pools: pools[sc].pvc_count += 1
+                    pvc_data.append({"Name": name, "Namespace": ns, "Status": status,
+                                     "Requested": req, "StorageClass": sc,
+                                     "Volume": pvc.get("spec", {}).get("volumeName", "Pending")})
+        except Exception as e:
+            logger.warning("PVC: %s", e)
+
+        # ── 풀 물리 Total/Avail 산출 (SLOW 240s; capacity 쿼리는 pvc_disk_stats와 동일 문자열 → _query 캐시 적중) ──
+        try:
+            phys = dict(getattr(self, "_last_pool_phys", {}))  # 깜빡임 방어: last-value 유지
+            _pvc_sc = {(p["Namespace"], p["Name"]): p["StorageClass"] for p in pvc_data}
+            cap_rows = self._query("kubelet_volume_stats_capacity_bytes")
+            if cap_rows:
+                _sc_max: Dict[str, int] = {}
+                for r in cap_rows:
+                    mm = r.get("metric", {})
+                    sc_n = _pvc_sc.get((mm.get("namespace", ""), mm.get("persistentvolumeclaim", "")))
+                    if not sc_n:
+                        continue
+                    v = int(float(r["value"][1]))
+                    if v > _sc_max.get(sc_n, 0):
+                        _sc_max[sc_n] = v
+                for sc_n, v in _sc_max.items():
+                    phys.setdefault(sc_n, {})["total"] = v
+            # hostpath 풀: 워커 /var FS 합 (풀 백킹 PVC는 kubelet stats 미보고 → 노드 FS 직접)
+            for _q, _k in (('sum(node_filesystem_size_bytes{mountpoint="/var",instance=~"worker.*"})', "total"),
+                           ('sum(node_filesystem_avail_bytes{mountpoint="/var",instance=~"worker.*"})', "avail")):
+                rows = self._query(_q)
+                if rows:
+                    v = int(float(rows[0]["value"][1]))
+                    for _n, _p in pools.items():
+                        if "hostpath" in (_p.provisioner or "").lower():
+                            phys.setdefault(_n, {})[_k] = v
+            self._last_pool_phys = phys
+            for _n, _p in pools.items():
+
+=== 2) phys 쿼리 3종 각 3회 (깜빡임 vs 지속실패 구분) ===
+[sum(node_filesystem_size_bytes{mountpoint="/var",instance=~"worker.*"})]
+   try: 1436363722752
+   try: 1436363722752
+   try: 1436363722752
+[sum(node_filesystem_avail_bytes{mountpoint="/var",instance=~"worker.*"})]
+   try: 1087444684800
+   try: 1087441215488
+   try: EMPTY
+[max(kubelet_volume_stats_capacity_bytes)]
+   try: EMPTY
+   try: 5997852622848
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/lib64/python3.11/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.11/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.11/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.11/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+=== 3) fetch_storage 최근 로그 ===
+2026-06-11 13:20:48 [INFO] [AIBoxPortal] │  💿 Eph     │ storage 용량: 6개 노드
+2026-06-11 13:20:57 [INFO] [AIBoxPortal] │  💾 PVC     │ 용량 매핑: 97개
+2026-06-11 13:20:57 [INFO] [AIBoxPortal] │  💾 FS      │ QEMU Agent: 38개 VM
+2026-06-11 13:20:57 [INFO] [AIBoxPortal] │  💾 FS      │ fs_pct 주입: 36개 VM / fs_used_bytes: 36개
+2026-06-11 13:21:17 [INFO] [AIBoxPortal] │  💿 Eph     │ storage 용량: 6개 노드
