@@ -1,0 +1,251 @@
+Name	Namespace	Status	Node	IP	OS	CPU	CPU %	Memory	Mem %	Disk	Net RX	Net TX	Agent	Age
+hjin-noroot	hjin-project	Running	worker02	10.131.3.66	RHEL 9.7	2	
+0.1%
+8Gi	
+5.8%
+2.1 GiB	0.0 B/s	0.0 B/s	Agent ✅	5d
+hjin-r97-build1	hjin-project	Running	worker03	10.128.3.5	RHEL 9.7	2	
+0.1%
+8Gi	
+5.9%
+2.1 GiB	0.6 B/s	0.9 B/s	Agent ✅	13d
+hjin-r97-build2	hjin-project	Running	worker03	10.128.3.4	RHEL 9.7	2	
+0.1%
+8Gi	
+5.8%
+2.1 GiB	0.0 B/s	0.0 B/s	Agent ✅	9d
+hjin-r97-build3	hjin-project	Running	worker02	10.131.3.61	RHEL 9.7	2	
+0.1%
+8Gi	
+5.8%
+2.1 GiB	0.3 B/s	0.0 B/s	Agent ✅	9d
+hjin-r97-build4	hjin-project	Running	worker03	10.128.3.8	RHEL 9.7	2	
+0.1%
+8Gi	
+5.8%
+2.1 GiB	0.0 B/s	0.0 B/s	Agent ✅	9d
+hjin-root	hjin-project	Running	worker02	10.131.3.67	RHEL 9.7	2	
+0.1%
+8Gi	
+5.9%
+2.1 GiB	0.6 B/s	0.6 B/s	Agent ✅	5d
+hjin-roottest	hjin-project	Running	worker03	10.128.3.1	RHEL 9.7	2	
+0.1%
+8Gi	
+5.9%
+2.1 GiB	0.3 B/s	0.3 B/s	Agent ✅	9d
+hjin-sles15sp6	hjin-project	Running	worker01	10.131.0.193	SUSE Linux Enterpris…	1	
+0.3%
+2Gi	
+20.3%
+30.7 GiB	462.0 B/s	0.0 B/s	Agent ✅	1d
+hjin-sles15sp6-1	hjin-project	Running	worker01	10.131.0.209	N/A	1	
+99.3%
+2Gi	
+—
+899.6 GiB	0.0 B/s	0.0 B/s	Agent —	22h
+rhel8-template	iso-upload	Stopped	N/A	N/A	N/A	1	
+—
+N/A	
+—
+—	—	—	Agent —	20d
+rhel9-custom-template	iso-upload	Stopped	N/A	N/A	N/A	N/A	
+—
+N/A	
+—
+—	—	—	Agent —	19d
+sles12sp5-custom-template	iso-upload	Stopped	N/A	N/A	N/A	N/A	
+—
+N/A	
+—
+—	—	—	Agent —	19d
+sles15sp6-custom-template	iso-upload	Stopped	N/A	N/A	N/A	N/A	
+—
+N/A	
+—
+—	—	—	Agent —	15d
+ksy-bastion	ksy	Running	worker02	10.131.3.63	RHEL 9.8	4	
+4.5%
+16Gi	
+32.2%
+304.4 GiB	916.7 KB/s	86.7 B/s	Agent ✅	14d
+ksy-master01	ksy	Running	worker02	10.131.3.57	RHEL CoreOS 9.6.2026…	4	
+14.9%
+16Gi	
+63.8%
+26.0 GiB	267.0 KB/s	668.2 KB/s	Agent ✅	12d
+ksy-master02	ksy	Running	worker02	10.131.3.46	RHEL CoreOS 9.6.2026…	4	
+14.9%
+16Gi	
+74.3%
+30.5 GiB	435.0 KB/s	738.4 KB/s	Agent ✅	12d
+ksy-master03	ksy	Running	worker02	10.131.3.56	RHEL CoreOS 9.6.2026…	4	
+14.1%
+16Gi	
+76.2%
+24.6 GiB	429.0 KB/s	653.2 KB/s	Agent ✅	12d
+ksy-worker01	ksy	Running	worker01	10.131.0.21	RHEL CoreOS 9.6.2026…	4	
+9.6%
+16Gi	
+58.1%
+35.7 GiB	329.6 KB/s	197.5 KB/s	Agent ✅	12d
+ksy-worker02	ksy	Running	worker02	10.131.3.60	RHEL CoreOS 9.6.2026…	4	
+13.1%
+16Gi	
+61.9%
+37.0 GiB	379.2 KB/s	257.0 KB/s	Agent ✅	12d
+rhel10.repo	repo-vm	Running	worker02	172.21.18.239	RHEL 10.2	1	
+0.3%
+8Gi	
+7.2%
+86.7 GiB	1.3 KB/s	95.9 B/s	Agent ✅	14d
+rhel6.repo	repo-vm	Running	worker01	100.100.100.106	RHEL 8.10	1	
+0.5%
+8Gi	
+6.1%
+15.6 GiB	1.2 KB/s	3.5 B/s	Agent ✅	20h
+rhel7.repo	repo-vm	Running	worker03	172.21.18.181	RHEL Server 7.9	1	
+0.6%
+8Gi	
+13.3%
+10.8 TiB	1.3 KB/s	61.3 B/s	Agent —	22d
+rhel8.repo	repo-vm	Running	worker03	172.21.18.182	RHEL 8.10	1	
+0.7%
+8Gi	
+15.2%
+305.4 GiB	1.3 KB/s	63.7 B/s	Agent ✅	22d
+rhel9.repo	repo-vm	Running	worker03	172.21.18.183	RHEL 9.7	1	
+0.8%
+82Gi	
+2.3%
+492.4 GiB	1.5 KB/s	1.1 KB/s	Agent ✅	22d
+rmt-server	repo-vm	Running	worker02	10.131.3.69	SUSE Linux Enterpris…	2	
+1.3%
+8Gi	
+24.3%
+287.1 GiB	0.3 B/s	3.4 B/s	Agent ✅	19d
+2nd-bastion	test-inkyun	Stopped	N/A	N/A	N/A	1	
+—
+N/A	
+—
+—	—	—	Agent —	15d
+inkyun-bastion	test-inkyun	Running	worker01	172.21.18.187	RHEL 9.8	1	
+0.5%
+16Gi	
+27.9%
+511.5 GiB	229.3 KB/s	228.1 KB/s	Agent ✅	19d
+inkyun-m01	test-inkyun	Running	worker02	100.100.9.11	RHEL CoreOS 9.6.2026…	4	
+8.9%
+16Gi	
+44.9%
+35.5 GiB	707.7 KB/s	969.8 KB/s	Agent ✅	16d
+inkyun-m02	test-inkyun	Running	worker01	100.100.9.12	RHEL CoreOS 9.6.2026…	4	
+15.2%
+16Gi	
+73.1%
+45.2 GiB	1.2 MB/s	1.4 MB/s	Agent ✅	16d
+inkyun-m03	test-inkyun	Running	worker01	100.100.9.13	RHEL CoreOS 9.6.2026…	4	
+12.1%
+16Gi	
+77.6%
+48.6 GiB	1.1 MB/s	654.3 KB/s	Agent ✅	16d
+inkyun-mm01	test-inkyun	Stopped	N/A	N/A	N/A	N/A	
+—
+N/A	
+—
+—	—	—	Agent —	15d
+inkyun-mm02	test-inkyun	Stopped	N/A	N/A	N/A	N/A	
+—
+N/A	
+—
+—	—	—	Agent —	15d
+inkyun-mm03	test-inkyun	Stopped	N/A	N/A	N/A	N/A	
+—
+N/A	
+—
+—	—	—	Agent —	15d
+inkyun-mm04	test-inkyun	Stopped	N/A	N/A	N/A	N/A	
+—
+N/A	
+—
+—	—	—	Agent —	15d
+inkyun-mm05	test-inkyun	Stopped	N/A	N/A	N/A	N/A	
+—
+N/A	
+—
+—	—	—	Agent —	15d
+inkyun-mm06	test-inkyun	Stopped	N/A	N/A	N/A	N/A	
+—
+N/A	
+—
+—	—	—	Agent —	15d
+inkyun-ww01	test-inkyun	Stopped	N/A	N/A	N/A	N/A	
+—
+N/A	
+—
+—	—	—	Agent —	15d
+jhyoon-rhel79	test-jihoo	Running	worker02	N/A	RHEL Server 7.9	1	
+0.2%
+2Gi	
+16.6%
+899.6 GiB	408.9 B/s	0.0 B/s	Agent —	15d
+jhyoon-rhel810	test-jihoo	Running	worker01	N/A	RHEL 8.10	1	
+0.7%
+2Gi	
+18.4%
+6.3 GiB	1.0 KB/s	1.3 KB/s	Agent ✅	16d
+jhyoon-rhel98	test-jihoo	Running	worker03	10.128.3.3	RHEL 9.8	1	
+0.3%
+2Gi	
+24.5%
+2.5 GiB	954.5 B/s	137.8 B/s	Agent ✅	15d
+jihoo-sles15sp6	test-jihoo	Running	worker01	10.131.0.196	SUSE Linux Enterpris…	1	
+0.3%
+2Gi	
+21.6%
+33.3 GiB	461.7 B/s	0.0 B/s	Agent ✅	19d
+b-ms-98	vm-minsol	Running	worker03	100.100.18.18	RHEL 9.8	2	
+1.6%
+16G	
+42.0%
+453.9 GiB	3.4 MB/s	369.8 KB/s	Agent ✅	19d
+ms-i01	vm-minsol	Running	worker02	100.100.18.24	RHEL CoreOS 9.6.2026…	4	
+2.0%
+18G	
+27.9%
+19.5 GiB	480.9 KB/s	1.5 MB/s	Agent ✅	19d
+ms-i02	vm-minsol	Running	worker01	100.100.18.25	RHEL CoreOS 9.6.2026…	4	
+1.5%
+18G	
+30.2%
+18.7 GiB	113.0 KB/s	2.0 MB/s	Agent ✅	19d
+ms-m01	vm-minsol	Running	worker02	100.100.18.11	RHEL CoreOS 9.6.2026…	4	
+6.1%
+18G	
+55.8%
+26.8 GiB	291.9 KB/s	602.3 KB/s	Agent ✅	19d
+ms-m02	vm-minsol	Running	worker01	100.100.18.12	RHEL CoreOS 9.6.2026…	4	
+7.2%
+18G	
+69.3%
+29.4 GiB	537.5 KB/s	483.9 KB/s	Agent ✅	19d
+ms-m03	vm-minsol	Running	worker02	100.100.18.13	RHEL CoreOS 9.6.2026…	4	
+7.4%
+18G	
+62.5%
+27.7 GiB	453.7 KB/s	699.8 KB/s	Agent ✅	19d
+ms-r01	vm-minsol	Running	worker02	100.100.18.26	RHEL CoreOS 9.6.2026…	4	
+0.7%
+18G	
+11.0%
+14.3 GiB	24.7 KB/s	14.8 KB/s	Agent ✅	19d
+ms-r02	vm-minsol	Running	worker02	100.100.18.27	RHEL CoreOS 9.6.2026…	4	
+1.4%
+18G	
+13.6%
+23.2 GiB	96.6 KB/s	81.7 KB/s	Agent ✅	19d
+ms-w01	vm-minsol	Running	worker02	100.100.18.21	RHEL CoreOS 9.6.2026…	4	
+0.7%
+18G	
+10.6%
+14.0 GiB	20.3 KB/s	11.3 KB/s	Agent ✅	19d
