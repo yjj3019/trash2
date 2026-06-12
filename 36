@@ -1,0 +1,94 @@
+[root@storage:root] # nginx -T 2>/dev/null | grep -n -B2 -A6 "proxy_pass"
+220-
+221-location /AIBox/rpm/ {
+222:        proxy_pass http://127.0.0.1:5050/;   # Flask / 라우트로 맵핑 (prefix strip)
+223-
+224-        proxy_set_header Host $host;
+225-        proxy_set_header X-Real-IP $remote_addr;
+226-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+227-        proxy_set_header X-Forwarded-Proto $scheme;
+228-        proxy_set_header X-Forwarded-Prefix /AIBox/patch;
+--
+260-    # --------------------------------------------------------------------------
+261-    location /AIBox/uploader {
+262:        proxy_pass http://127.0.0.1:5020/AIBox/uploader;
+263-        proxy_set_header Host $host;
+264-        proxy_set_header X-Real-IP $remote_addr;
+265-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+266-    }
+267-
+268-    # 2. Cloud Uploader API - Files & Management
+269-    # --------------------------------------------------------------------------
+270-    location /AIBox/files {
+271:        proxy_pass http://127.0.0.1:5020/AIBox/files;
+272-        proxy_set_header Host $host;
+273-        proxy_set_header X-Real-IP $remote_addr;
+274-    }
+275-
+276-    # 3. Cloud Uploader API - Chunk Upload
+277-    # [중요] 끝 슬래시(/) 처리를 위해 정규식 대신 유연한 매칭 사용
+278-    location /AIBox/upload {
+279:        proxy_pass http://127.0.0.1:5020/AIBox/upload;
+280-        proxy_set_header Host $host;
+281-        proxy_set_header X-Real-IP $remote_addr;
+282-        proxy_request_buffering off;
+283-        proxy_buffering off;
+284-    }
+285-
+286-    # 4. Cloud Uploader API - Download
+287-    location /AIBox/download/ {
+288:        proxy_pass http://127.0.0.1:5020/AIBox/download/;
+289-        proxy_set_header Host $host;
+290-    }
+291-
+292-    # 2. Intelligence Memo API (Port 5025) - [NEW]
+293-    # --------------------------------------------------------------------------
+294-    location /AIBox/memo-api/ {
+295:        proxy_pass http://127.0.0.1:5025/api/;
+296-        proxy_http_version 1.1;
+297-        proxy_set_header Upgrade $http_upgrade;
+298-        proxy_set_header Connection 'upgrade';
+299-        proxy_set_header Host $host;
+300-        proxy_set_header X-Real-IP $remote_addr;
+301-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+--
+305-    # AIBox/cve-latest
+306-    location /AIBox/cve-latest/ {  # <--- 끝에 / 추가
+307:        proxy_pass http://127.0.0.1:5005/; # Flask의 / 라우트로 맵핑
+308-
+309-        proxy_set_header Host $host;
+310-        proxy_set_header X-Real-IP $remote_addr;
+311-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+312-        proxy_set_header X-Forwarded-Proto $scheme;
+313-
+--
+330-location /AIBox/pkt_api/ {
+331-    # 브라우저 요청(/AIBox/pkt_api/analyze)을 백엔드의 동일한 경로로 전달
+332:    proxy_pass http://127.0.0.1:4000;
+333-
+334-    # 기본 헤더 설정
+335-    proxy_set_header Host $host;
+336-    proxy_set_header X-Real-IP $remote_addr;
+337-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+338-    proxy_set_header X-Forwarded-Proto $scheme;
+--
+359-    # --------------------------------------------------------------------------
+360-    location /AIBox/chat-api/ {
+361:        proxy_pass http://127.0.0.1:5015/AIBox/chat-api/;
+362-        proxy_buffering off;
+363-        proxy_read_timeout 600s;
+364-    }
+365-
+366-    location /AIBox/crash/ {
+367:        proxy_pass http://127.0.0.1:5010/;
+368-        proxy_read_timeout 1500s;
+369-    }
+370-
+371-    location /AIBox/api/ {
+372:        proxy_pass http://127.0.0.1:5000;
+373-        proxy_http_version 1.1;
+374-        proxy_set_header Upgrade $http_upgrade;
+375-        proxy_set_header Connection "upgrade";
+376-    }
+377-
+378-    # 정적 자산 서빙 (가장 낮은 우선순위)
