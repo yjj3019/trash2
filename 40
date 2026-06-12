@@ -1,0 +1,162 @@
+[jjyoo@bastion:~/ocp/_deploy_upload]$ cd ~/ocp/_deploy_upload
+echo "=== build-bundle.sh의 pip download 라인 (48~52) ==="
+sed -n '40,56p' build-bundle.sh
+echo ""
+echo "=== Containerfile 베이스 (타겟 플랫폼 확정) ==="
+head -1 container/aibox/Containerfile
+=== build-bundle.sh의 pip download 라인 (48~52) ===
+[[ -f container/aibox/Containerfile ]] || die "container/aibox/Containerfile 없음"
+WHEELS_DIR="container/aibox/wheels"
+if [[ -d "$WHEELS_DIR" ]] && [[ $(ls -1 "$WHEELS_DIR"/*.whl 2>/dev/null | wc -l) -gt 0 ]]; then
+    ok "wheels $(ls -1 "$WHEELS_DIR"/*.whl | wc -l)개 (오프라인 빌드용)"
+else
+    warn "wheels 없음 → PyPI에서 다운로드 시도 (온라인 필요)"
+    if curl -sI --max-time 5 https://pypi.org >/dev/null 2>&1; then
+        mkdir -p "$WHEELS_DIR"
+        pip download --dest "$WHEELS_DIR" --only-binary=:all: \
+            -r container/aibox/requirements.txt 2>/dev/null \
+            || pip download --dest "$WHEELS_DIR" \
+               fastapi "uvicorn[standard]" httpx psycopg2-binary redis python-multipart
+        ok "wheels 다운로드 완료"
+    else
+        die "wheels 없고 PyPI 미접근 — 빌드 불가"
+    fi
+fi
+
+=== Containerfile 베이스 (타겟 플랫폼 확정) ===
+FROM registry.access.redhat.com/ubi9/python-311:latest
+[jjyoo@bastion:~/ocp/_deploy_upload]$ pip download --dest "$WHEELS_DIR" --only-binary=:all: \
+    --python-version 311 --platform manylinux2014_x86_64 --implementation cp \
+    -r container/aibox/requirements.txt
+Collecting fastapi==0.111.0
+  Using cached fastapi-0.111.0-py3-none-any.whl (91 kB)
+Collecting uvicorn[standard]==0.29.0
+  Using cached uvicorn-0.29.0-py3-none-any.whl (60 kB)
+Collecting httpx==0.27.0
+  Using cached httpx-0.27.0-py3-none-any.whl (75 kB)
+Collecting psycopg2-binary==2.9.9
+  Downloading psycopg2_binary-2.9.9-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.0 MB)
+     |████████████████████████████████| 3.0 MB 15.6 MB/s
+Collecting redis==5.0.4
+  Using cached redis-5.0.4-py3-none-any.whl (251 kB)
+Collecting python-multipart==0.0.9
+  Using cached python_multipart-0.0.9-py3-none-any.whl (22 kB)
+Collecting email_validator>=2.0.0
+  Using cached email_validator-2.3.0-py3-none-any.whl (35 kB)
+Collecting jinja2>=2.11.2
+  Using cached jinja2-3.1.6-py3-none-any.whl (134 kB)
+Collecting typing-extensions>=4.8.0
+  Using cached typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+Collecting orjson>=3.2.1
+  Using cached orjson-3.11.9-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (133 kB)
+Collecting ujson!=4.0.2,!=4.1.0,!=4.2.0,!=4.3.0,!=5.0.0,!=5.1.0,>=4.0.1
+  Using cached ujson-5.10.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (53 kB)
+Collecting pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4
+  Using cached pydantic-2.13.4-py3-none-any.whl (472 kB)
+Collecting starlette<0.38.0,>=0.37.2
+  Using cached starlette-0.37.2-py3-none-any.whl (71 kB)
+Collecting fastapi-cli>=0.0.2
+  Using cached fastapi_cli-0.0.24-py3-none-any.whl (12 kB)
+Collecting click>=7.0
+  Using cached click-8.4.1-py3-none-any.whl (116 kB)
+Collecting h11>=0.8
+  Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+Collecting pyyaml>=5.1
+  Using cached pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (806 kB)
+Collecting uvloop!=0.15.0,!=0.15.1,>=0.14.0
+  Using cached uvloop-0.22.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.8 MB)
+Collecting websockets>=10.4
+  Using cached websockets-16.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (184 kB)
+Collecting python-dotenv>=0.13
+  Using cached python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+Collecting httptools>=0.5.0
+  Using cached httptools-0.8.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (464 kB)
+Collecting watchfiles>=0.13
+  Using cached watchfiles-1.2.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (456 kB)
+Collecting anyio
+  Using cached anyio-4.13.0-py3-none-any.whl (114 kB)
+Collecting idna
+  Using cached idna-3.18-py3-none-any.whl (65 kB)
+Collecting sniffio
+  Using cached sniffio-1.3.1-py3-none-any.whl (10 kB)
+Collecting certifi
+  Using cached certifi-2026.5.20-py3-none-any.whl (134 kB)
+Collecting httpcore==1.*
+  Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+Collecting async-timeout>=4.0.3
+  Using cached async_timeout-5.0.1-py3-none-any.whl (6.2 kB)
+Collecting dnspython>=2.0.0
+  Using cached dnspython-2.8.0-py3-none-any.whl (331 kB)
+Collecting rich-toolkit>=0.14.8
+  Using cached rich_toolkit-0.20.1-py3-none-any.whl (35 kB)
+Collecting typer>=0.16.0
+  Downloading typer-0.26.7-py3-none-any.whl (122 kB)
+     |████████████████████████████████| 122 kB 33.5 MB/s
+Collecting tomli>=2.0.0
+  Using cached tomli-2.4.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (243 kB)
+Collecting MarkupSafe>=2.0
+  Using cached markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+Collecting typing-inspection>=0.4.2
+  Using cached typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+Collecting annotated-types>=0.6.0
+  Using cached annotated_types-0.7.0-py3-none-any.whl (13 kB)
+Collecting pydantic-core==2.46.4
+  Using cached pydantic_core-2.46.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+Collecting exceptiongroup>=1.0.2
+  Using cached exceptiongroup-1.3.1-py3-none-any.whl (16 kB)
+Collecting rich>=13.7.1
+  Using cached rich-15.0.0-py3-none-any.whl (310 kB)
+Collecting annotated-doc>=0.0.2
+  Using cached annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)
+Collecting shellingham>=1.3.0
+  Using cached shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+Collecting pygments<3.0.0,>=2.13.0
+  Using cached pygments-2.20.0-py3-none-any.whl (1.2 MB)
+Collecting markdown-it-py>=2.2.0
+  Using cached markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+Collecting mdurl~=0.1
+  Using cached mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Saved ./fastapi-0.111.0-py3-none-any.whl
+Saved ./httpx-0.27.0-py3-none-any.whl
+Saved ./psycopg2_binary-2.9.9-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Saved ./redis-5.0.4-py3-none-any.whl
+Saved ./python_multipart-0.0.9-py3-none-any.whl
+Saved ./httpcore-1.0.9-py3-none-any.whl
+Saved ./async_timeout-5.0.1-py3-none-any.whl
+Saved ./click-8.4.1-py3-none-any.whl
+Saved ./email_validator-2.3.0-py3-none-any.whl
+Saved ./fastapi_cli-0.0.24-py3-none-any.whl
+Saved ./h11-0.16.0-py3-none-any.whl
+Saved ./httptools-0.8.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
+Saved ./idna-3.18-py3-none-any.whl
+Saved ./jinja2-3.1.6-py3-none-any.whl
+Saved ./orjson-3.11.9-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Saved ./pydantic-2.13.4-py3-none-any.whl
+Saved ./pydantic_core-2.46.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Saved ./python_dotenv-1.2.2-py3-none-any.whl
+Saved ./pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Saved ./starlette-0.37.2-py3-none-any.whl
+Saved ./anyio-4.13.0-py3-none-any.whl
+Saved ./typing_extensions-4.15.0-py3-none-any.whl
+Saved ./ujson-5.10.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Saved ./uvloop-0.22.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Saved ./watchfiles-1.2.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Saved ./websockets-16.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
+Saved ./certifi-2026.5.20-py3-none-any.whl
+Saved ./sniffio-1.3.1-py3-none-any.whl
+Saved ./uvicorn-0.29.0-py3-none-any.whl
+Saved ./annotated_types-0.7.0-py3-none-any.whl
+Saved ./dnspython-2.8.0-py3-none-any.whl
+Saved ./exceptiongroup-1.3.1-py3-none-any.whl
+Saved ./markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Saved ./rich_toolkit-0.20.1-py3-none-any.whl
+Saved ./tomli-2.4.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Saved ./typer-0.26.7-py3-none-any.whl
+Saved ./typing_inspection-0.4.2-py3-none-any.whl
+Saved ./annotated_doc-0.0.4-py3-none-any.whl
+Saved ./rich-15.0.0-py3-none-any.whl
+Saved ./shellingham-1.5.4-py2.py3-none-any.whl
+Saved ./markdown_it_py-4.2.0-py3-none-any.whl
+Saved ./pygments-2.20.0-py3-none-any.whl
+Saved ./mdurl-0.1.2-py3-none-any.whl
+Successfully downloaded fastapi httpx psycopg2-binary redis python-multipart httpcore async-timeout click email-validator fastapi-cli h11 httptools idna jinja2 orjson pydantic pydantic-core python-dotenv pyyaml starlette anyio typing-extensions ujson uvloop watchfiles websockets certifi sniffio uvicorn annotated-types dnspython exceptiongroup MarkupSafe rich-toolkit tomli typer typing-inspection annotated-doc rich shellingham markdown-it-py pygments mdurl
