@@ -1,0 +1,109 @@
+(.venv) [jjyoo@storage:AIBox] $ cd /data/iso/AIBox
+
+# config.yaml 실제 위치 탐색
+
+CONF=$(find /data/iso/AIBox .. -maxdepth 2 -name config.yaml 2>/dev/null | head -1)
+
+echo "CONFIG: $CONF"
+
+LLM_URL=$(python3.11 -c "import yaml; print(yaml.safe_load(open('$CONF'))['llm_url'])")
+
+echo "URL: $LLM_URL"
+
+curl -s "$LLM_URL" -H 'Content-Type: application/json' \
+
+(.venv) [jjyoo@storage:AIBox] $ # config.yaml 실제 위치 탐색
+
+(.venv) [jjyoo@storage:AIBox] $ CONF=$(find /data/iso/AIBox .. -maxdepth 2 -name config.yaml 2>/dev/null | head -1)
+
+  -d '{"model":"Qwen/Qwen3.6-27B","messages":[{"role":"user","content":"return {ok:true}"}],"chat_template_kwargs":{"enable_thinking":false}}' \
+
+  | python3.11 -m json.tool(.venv) [jjyoo@storage:AIBox] $ echo "CONFIG: $CONF"
+
+CONFIG: /data/iso/AIBox/config.yaml
+
+(.venv) [jjyoo@storage:AIBox] $
+
+(.venv) [jjyoo@storage:AIBox] $ LLM_URL=$(python3.11 -c "import yaml; print(yaml.safe_load(open('$CONF'))['llm_url'])")
+
+(.venv) [jjyoo@storage:AIBox] $ echo "URL: $LLM_URL"
+
+URL: http://172.21.135.113:4000
+
+(.venv) [jjyoo@storage:AIBox] $
+
+(.venv) [jjyoo@storage:AIBox] $ curl -s "$LLM_URL" -H 'Content-Type: application/json' \
+
+>   -d '{"model":"Qwen/Qwen3.6-27B","messages":[{"role":"user","content":"return {ok:true}"}],"chat_template_kwargs":{"enable_thinking":false}}' \
+
+>   | python3.11 -m json.tool
+
+{
+
+    "detail": "Method Not Allowed"
+
+}
+
+
+
+(.venv) [jjyoo@storage:AIBox] $ grep -nE 'model_to_use|model_override|reasoning_model|fast_model' AIBox_Server.py | head -30
+
+980:def call_llm_blocking(system_message, user_message, max_tokens=16384, model_override=None):
+
+988:    if model_override:
+
+989:        model_to_use = model_override
+
+999:            model_to_use = CONFIG.get("reasoning_model", CONFIG.get("model"))
+
+1001:            model_to_use = CONFIG.get("fast_model", CONFIG.get("model"))
+
+1004:    if model_to_use == CONFIG.get('fallbacks_model'):
+
+1006:    elif model_to_use == CONFIG.get('reasoning_model'):
+
+1007:        configured_context_window_kb = CONFIG.get('reasoning_model_context', 0)
+
+1008:    else: # fast_model 또는 기본 모델
+
+1009:        configured_context_window_kb = CONFIG.get('fast_model_context', 0)
+
+1011:    cache_key = get_cache_key(system_message, user_message, model=model_to_use, max_tokens=max_tokens, stream=False)
+
+1077:                return _call_llm_single_blocking(summarization_system_message, chunk_prompt, CONFIG.get("fast_model"), 1024, request_id=f"pre-chunk-{idx+1}")
+
+1116:    final_response_str = _call_llm_single_blocking(system_message, user_message, model_to_use, max_tokens)
+
+1140:        model_to_use = CONFIG.get("reasoning_model", CONFIG["model"])
+
+1142:        model_to_use = CONFIG.get("fast_model", CONFIG["model"])
+
+1146:    cache_key = get_cache_key(system_message, user_message, model=model_to_use, stream=True)
+
+1177:        payload = {"model": model_to_use, "messages": messages, "max_tokens": 8192, "temperature": 0.2, "stream": True, "user": request_id}
+
+1187:        logging.info(f"[{request_id}] LLM 스트리밍 요청 (모델: {model_to_use})...")
+
+1188:        llm_logger.info(f"[{request_id}] [REQ][STREAM] POST {CONFIG['llm_url']} (Model: {model_to_use})")
+
+1466:        "reasoning_model": CONFIG.get("reasoning_model", "N/A"),
+
+1467:        "fast_model": CONFIG.get("fast_model", "N/A"),
+
+1469:        "reasoning_model_context": CONFIG.get("reasoning_model_context", 0),
+
+1470:        "fast_model_context": CONFIG.get("fast_model_context", 0),
+
+1906:            # [BUG FIX] 스트리밍 요청 시에도 model_override를 전달합니다.
+
+2261:    response_obj = call_llm_blocking("You are a cybersecurity analyst who summarizes technical details.", prompt, model_override=CONFIG.get("fast_model"))
+
+2458:        model_to_use = CONFIG.get("fast_model", CONFIG.get("model"))
+
+2462:        raw_response_str = _call_llm_single_blocking(system_message, user_message, model_to_use, max_tokens=10, request_id="health-check")
+
+2739:    logging.info(f"테스트 모델: {config.get('fast_model', config.get('model'))}")
+
+2749:        model_to_use = config.get("fast_model", config.get("model"))
+
+2752:        raw_response_str = _call_llm_single_blocking(system_message, user_message, model_to_use, request_id="startup-test")
