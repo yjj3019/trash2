@@ -1,0 +1,140 @@
+(.venv) [jjyoo@storage:AIBox] $ # 1) analyze_system 핸들러의 LLM 호출부 — 어떤 user_message/모델로 가는지
+(.venv) [jjyoo@storage:AIBox] $ sed -n '1875,1945p' /data/iso/AIBox/AIBox_Server.py
+def api_delete_cve_check_report():
+    """cve-check/output 디렉토리에서 특정 리포트 파일을 삭제합니다."""
+    # [보안 강화] 개별 cve-check 리포트 삭제에도 비밀번호 검증을 추가합니다.
+    # ⚠ 주의: 프론트엔드(cve_check.html)의 삭제 요청 body에 {"password": ...}를 포함하도록 수정이 필요합니다.
+    req_body = request.get_json(silent=True) or {}
+    if not verify_password(req_body.get('password')):
+        return jsonify({"error": "Unauthorized"}), 401
+    filename = request.args.get('file')
+    if not filename:
+        return jsonify({"error": "파일 파라미터가 누락되었습니다."}), 400
+
+    if not filename.endswith('.html'):
+        return jsonify({"error": "잘못된 파일 이름 형식입니다."}), 400
+
+    try:
+        file_path = os.path.join(CVE_CHECK_OUTPUT_FOLDER, secure_filename(filename))
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logging.info(f"cve-check 리포트 파일 삭제 완료: {file_path}")
+            return jsonify({"success": True, "message": f"'{filename}' 파일이 삭제되었습니다."})
+        else:
+            return jsonify({"error": "파일을 찾을 수 없습니다."}), 404
+
+    except Exception as e:
+        logging.error(f"cve-check 리포트 삭제 중 오류 발생: {e}", exc_info=True)
+        return jsonify({"error": f"파일 삭제 중 오류 발생: {e}"}), 500
+
+
+@app.route('/AIBox/cve_check.html')
+def route_cve_check_html():
+    """[신규] CVE 분석 자동화 UI 페이지를 렌더링합니다."""
+    return send_from_directory(SCRIPT_DIR, 'cve_check.html')
+
+@app.route('/AIBox/api/sos/analyze_system', methods=['POST'])
+def api_sos_analyze_system():
+    # [보안 강화][opt-in] AIBOX_API_TOKEN 환경 변수 설정 시에만 토큰 검증 (미설정 시 기존 동작)
+    auth_error = require_api_token()
+    if auth_error:
+        return auth_error
+    try:
+        req_data = request.json
+        system_message = "You are an expert assistant. Follow the user's instructions precisely, including the output format."
+
+        # [사용자 요청] 캐시 효율성 개선: 새로운 프롬프트 구조('prompt_template', 'data')를 처리합니다.
+        if isinstance(req_data, dict) and 'prompt_template' in req_data and 'data' in req_data:
+            prompt_template = req_data['prompt_template']
+            # [BUG FIX] 클라이언트가 보낸 'data' 객체에서 'chunk_name'과 'chunk_data'를 추출합니다.
+            analysis_data_wrapper = req_data['data']
+            chunk_name = analysis_data_wrapper.get('chunk_name', 'Unknown')
+            chunk_data_content = analysis_data_wrapper.get('chunk_data', {})
+            # 최종 프롬프트는 서버에서 동적으로 생성합니다.
+            prompt = prompt_template.format(chunk_name=chunk_name, chunk_data=json.dumps(chunk_data_content, indent=2, ensure_ascii=False, default=str))
+            # 캐싱을 위해 user_message를 구조화된 딕셔너리로 전달합니다.
+            user_message = {'prompt_template': prompt_template, 'data': analysis_data_wrapper}
+        elif isinstance(req_data, dict) and "prompt" in req_data: # 기존 방식 (하위 호환성)
+            # [BUG FIX] dict 전체가 아닌 실제 프롬프트 문자열을 추출합니다.
+            # 기존 코드는 {"prompt": ..., "stream": ...} 객체 전체가 LLM 입력으로 전달되는 버그가 있었습니다.
+            prompt = req_data["prompt"]
+            user_message = prompt # 캐싱을 위해 프롬프트 문자열을 전달합니다.
+        else: # 기존 security.py와의 호환성을 위한 폴백
+            return jsonify({"error": "Invalid request format"}), 400
+
+        # [BUG FIX] 요청에 'stream' 플래그가 있는지 확인하여 블로킹/스트리밍 호출을 동적으로 결정합니다.
+        # cve_report_generator.py와 같이 단일 응답을 기대하는 클라이언트와의 호환성을 보장합니다.
+        if req_data.get('stream', False):
+            # [BUG FIX] 스트리밍 요청 시에도 model_override를 전달합니다.
+            return Response(call_llm_stream(system_message, user_message=prompt), mimetype='text/plain; charset=utf-8')
+        else:
+            # 블로킹 요청 처리
+            response_obj = call_llm_blocking(system_message, user_message=user_message)
+(.venv) [jjyoo@storage:AIBox] $
+(.venv) [jjyoo@storage:AIBox] $ # 2) create_cve_report.py가 analyze_system에 보내는 payload/프롬프트 구성
+(.venv) [jjyoo@storage:AIBox] $ sed -n '97,160p' /data/iso/AIBox/cvereport/create_cve_report.py
+def analyze_data_with_llm(cve_id: str, cve_data: dict, external_data: dict, server_url: str) -> str:
+    """제공된 CVE 데이터를 기반으로 지정된 AIBox 서버를 호출하여 분석을 수행합니다."""
+    # [사용자 요청] LLM 응답 파싱 실패 시 3회 재시도 로직 추가
+    max_retries = 3 # noqa: F841
+
+    # [BUG FIX] CVE 데이터가 비어있으면 AI 분석을 시도하지 않고 즉시 반환합니다.
+    if not cve_data:
+        return "### AI 분석 불가\n\n제공된 CVE에 대한 정보가 없습니다. 해당 CVE의 세부 정보나 영향을 분석하기 위해 구체적인 식별자(CVE 번호)가 필요합니다."
+
+    for attempt in range(max_retries):
+        logging.info(f"'{cve_id}'에 대한 AI 분석을 시작합니다 (시도 {attempt + 1}/{max_retries}, 서버: {server_url})...")
+
+        # [요청사항 반영] 프롬프트에 포함할 제품 목록 문자열 생성
+        target_products_str = "\n".join([f"- `{p.pattern}`" for p in TARGET_PRODUCT_PATTERNS])
+
+        # [BUG FIX] 외부 위협 인텔리전스 정보를 프롬프트에 포함하여 AI가 활용하도록 합니다.
+        external_intel_str = f"""
+[입력 데이터: 외부 위협 인텔리전스]
+```json
+{dumps(external_data, indent=True)}
+```"""
+        # [사용자 요청 반영] Red Hat 보안 전문가의 관점에서 체계적인 보고서를 생성하도록 프롬프트를 전면 개편합니다.
+        # AI가 웹 검색을 통해 최신 정보를 수집하고, 지정된 형식에 맞춰 상세 분석을 수행하도록 지시합니다.
+        prompt = f"""[시스템 역할]
+당신은 Red Hat의 최고 수준 보안 전문가이자, 복잡한 기술 내용을 명확하고 간결한 한국어로 전달하는 데 능숙한 IT 전문 번역가입니다. 주어진 CVE 데이터와 **웹 검색을 통해 수집한 최신 정보를 바탕으로**, 아래의 상세한 가이드라인과 출력 형식에 맞춰 전문적인 보안 분석 보고서를 한국어로 작성하십시오. {external_intel_str}
+
+[분석 대상 제품 목록]
+아래 목록에 해당하는 Red Hat Enterprise Linux 제품에 대해서만 분석을 집중하십시오.
+{target_products_str}
+
+[분석 가이드라인]
+1.  **정확성**: 제공된 JSON 데이터와 웹 검색 결과를 교차 검증하여 기술적으로 정확한 내용만 전달합니다.
+2.  **명확성**: 기술 용어는 한국 IT 환경에서 보편적으로 사용되는 용어를 채택하되, 비전문가도 이해할 수 있도록 쉽게 설명합니다.
+3.  **용어 선택**: 한국어로 번역 시 의미가 모호해질 수 있는 기술 용어는 원문(영어)을 그대로 사용하거나 병기하여 명확성을 유지합니다. (예: 'Orchestration'은 '오케스트레이션'으로 음차 표기)
+4.  **간결성**: 각 항목은 핵심 내용 위주로 간결하게 요약하여 작성합니다.
+
+[분석 유형] security report
+[입력 데이터: CVE 정보]
+```json
+{dumps(cve_data, indent=True)}
+```
+
+[출력 형식: 상세 분석 보고서 (Markdown)]
+### 취약점 개요 (Vulnerability Summary)
+- **[분석 대상 제품 목록]에 명시된 제품과 관련하여**, 이 취약점의 문제 발생 원인과 그로 인해 유발되는 핵심적인 기술적 취약점(예: 정수 오버플로우, 힙 버퍼 오버플로우)을 **마크다운(굵은 글씨, 목록 등)을 적극적으로 사용하여** 명확하고 간결하게 설명합니다. 다른 제품은 절대 언급하지 마십시오.
+
+### 근본 원인 분석 (Root Cause Analysis)
+- 제공된 'cwe'와 상세 설명을 바탕으로 취약점이 발생하는 기술적 원인을 **마크다운을 활용하여 구조적으로** 심층 분석합니다.
+
+### 잠재적 영향 (Impact Assessment) - [사용자 요청] 프롬프트 개선
+- **CVSS 점수 기반 영향**: CVSS 점수, 심각도, 공격 벡터, 그리고 기밀성(C)/무결성(I)/가용성(A)에 미치는 영향을 명확히 구분하여 설명합니다.
+- **EPSS 점수 기반 위험 평가**: EPSS 점수와 백분위수(Percentile)를 제시하고, 이를 바탕으로 실제 환경에서 악용될 가능성이 얼마나 높은지 해석합니다.
+- **비즈니스 영향**: 이 취약점이 악용되었을 때 발생할 수 있는 구체적인 비즈니스 시나리오(예: 서비스 중단, 데이터 유출, 시스템 장악)와 특별히 위험에 노출될 수 있는 환경(예: SAP, NFV, EUS)을 명시합니다.
+- **보안 위험**: 공격의 기술적 측면(예: 로컬 공격, 원격 공격)과 패치의 시급성, 그리고 실시간 패치(kpatch) 적용 가능 여부를 설명합니다.
+- **CISA KEV 카탈로그 등재 여부**: CISA의 '실제 공격에 악용되는 취약점 목록(KEV)' 등재 여부와 등재일, 그리고 이것이 의미하는 긴급성을 명확히 기술합니다.
+- **완화 조치 (Mitigation)**: Red Hat이 공식적으로 제공하는 완화 조치가 있는지, 없다면 그 이유는 무엇인지 설명합니다.
+
+"""
+    # [BUG FIX] AIBox 서버로부터 받은 기본 URL을 사용하여 올바른 API 엔드포인트 주소를 구성합니다.
+    api_url = f"{server_url.rstrip('/')}/AIBox/api/sos/analyze_system"
+    payload = {
+        "prompt": prompt,
+        "model_selector": "deep_dive" # 복잡한 리포트 생성이므로 reasoning_model 사용
+    }
