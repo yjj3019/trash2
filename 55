@@ -1,0 +1,22 @@
+# A) chat_template_kwargs.enable_thinking=false (Qwen3 표준)
+curl -s -m 60 "${H[@]}" "$URL" -d '{"model":"'"$M"'","messages":[{"role":"user","content":"Return only JSON: {\"ok\":true}"}],"max_tokens":50,"stream":false,"chat_template_kwargs":{"enable_thinking":false}}'; echo
+
+# B) reasoning_effort: "none"  (일부 게이트웨이)
+(.venv) [jjyoo@storage:security] $ H=(-H "Content-Type: application/json" -H "Authorization: Bearer ${TOKEN}")
+curl -s -m 60 "${H[@]}" "$URL" -d '{"model":"'"$M"'","messages":[{"role":"user","content":"Return only JSON: {\"ok\":true}"}],"max_tokens":50,"stream":false,"reasoning_effort":"none"}'; echo
+
+# C) extra_body / enable_thinking 최상위
+curl -s -m 60 "${H[@]}" "$URL" -d '{"model":"'"$M"'","messages":[{"role":"user","content":"Return only JSON: {\"ok\":true}"}],"max_tokens":50,"stream":false,"enable_thinking":false}'; echo(.venv) [jjyoo@storage:security] $ M="Qwen/Qwen3.6-27B"
+(.venv) [jjyoo@storage:security] $
+(.venv) [jjyoo@storage:security] $ # A) chat_template_kwargs.enable_thinking=false (Qwen3 표준)
+(.venv) [jjyoo@storage:security] $ curl -s -m 60 "${H[@]}" "$URL" -d '{"model":"'"$M"'","messages":[{"role":"user","content":"Return only JSON: {\"ok\":true}"}],"max_tokens":50,"stream":false,"chat_template_kwargs":{"enable_thinking":false}}'; echo
+
+{"id":"chatcmpl-a180b13748ea5f8b","created":1781507987,"model":"Qwen/Qwen3.6-27B","object":"chat.completion","choices":[{"finish_reason":"stop","index":0,"message":{"content":"```json\n{\n  \"ok\": true\n}\n```","role":"assistant","provider_specific_fields":{"refusal":null,"reasoning":null}},"provider_specific_fields":{}}],"usage":{"completion_tokens":15,"prompt_tokens":21,"total_tokens":36}}
+(.venv) [jjyoo@storage:security] $
+(.venv) [jjyoo@storage:security] $ # B) reasoning_effort: "none"  (일부 게이트웨이)
+(.venv) [jjyoo@storage:security] $ curl -s -m 60 "${H[@]}" "$URL" -d '{"model":"'"$M"'","messages":[{"role":"user","content":"Return only JSON: {\"ok\":true}"}],"max_tokens":50,"stream":false,"reasoning_effort":"none"}'; echo
+{"error":{"message":"litellm.UnsupportedParamsError: openai does not support parameters: ['reasoning_effort'], for model=Qwen/Qwen3.6-27B. To drop these, set `litellm.drop_params=True` or for proxy:\n\n`litellm_settings:\n drop_params: true`\n. \n If you want to use these params dynamically send allowed_openai_params=['reasoning_effort'] in your request.. Received Model Group=Qwen/Qwen3.6-27B\nAvailable Model Group Fallbacks=None","type":"None","param":null,"code":"400"}}
+(.venv) [jjyoo@storage:security] $
+(.venv) [jjyoo@storage:security] $ # C) extra_body / enable_thinking 최상위
+(.venv) [jjyoo@storage:security] $ curl -s -m 60 "${H[@]}" "$URL" -d '{"model":"'"$M"'","messages":[{"role":"user","content":"Return only JSON: {\"ok\":true}"}],"max_tokens":50,"stream":false,"enable_thinking":false}'; echo
+{"id":"chatcmpl-bb6fb54418f70d12","created":1781507998,"model":"Qwen/Qwen3.6-27B","object":"chat.completion","choices":[{"finish_reason":"length","index":0,"message":{"role":"assistant","reasoning_content":"Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User says: \"Return only JSON: {\"ok\":true}\"\n   - This is a direct instruction to output exactly that JSON string and nothing else.","provider_specific_fields":{"refusal":null,"reasoning":"Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User says: \"Return only JSON: {\"ok\":true}\"\n   - This is a direct instruction to output exactly that JSON string and nothing else.","reasoning_content":"Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User says: \"Return only JSON: {\"ok\":true}\"\n   - This is a direct instruction to output exactly that JSON string and nothing else."},"content":null},"provider_specific_fields":{"token_ids":null,"stop_reason":null}}],"usage":{"completion_tokens":50,"prompt_tokens":19,"total_tokens":69}}
