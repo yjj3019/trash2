@@ -1,0 +1,36 @@
+# RHSP 작업 이어서 진행 — 인계 브리핑
+
+## 프로젝트
+- 에스코어(S-Core) ↔ ㈜티맥스소프트, 단일 프로젝트 "개발/테스트 IT인프라 현대화"
+  (연구본부 ~180명, 4개 개발실+QA / VM 168개·1,152 vCPU·3,840GB·144TB)
+- RHSP Service Validation, 2개 전문분야 각각 별도 신청: ①Virtualization(=OpenShift) ②Server/Cloud OS(=RHEL)
+- 검수·인수 완료 2026.03.13 (As-Built: OCP 4.20.10, master3+worker12+bastion / RHEL VDC 12 + Server 1)
+- 제출 언어: 한글. 응답은 간결하게.
+- 진척 트래커(Notion): "RHSP 작업중" — 작업 후 반드시 단일 종합 구조로 갱신 + 변경이력 누적
+  https://app.notion.com/p/380b44a2dd2e80f9af15c841a9e671d7
+
+## 반드시 지킬 사실(중요)
+- **패치/망: 공개망(non-airgapped)이나 현재 온라인 패치 미적용.** 폐쇄망·오프라인 rpm 표현 금지.
+  패치는 검증 후 표준 이미지 갱신·재배포로 반영. 향후 로드맵(계약 외): 온라인 패치 채널·Satellite/Insights·RHACM·Ansible Automation Platform(Tower).
+- 디자인 표준(S-Core): 주색 #0156FC, 본문 #404040~#333333, 흰 배경 고정, 한글 KoPub돋움체 Bold(fallback 맑은 고딕), 16:9. 이모지·크림/노랑 배경·본문 중앙정렬 금지.
+- 제안서 삽입 슬라이드는 원본 92p OpenShift 제안서 slide 26/27 디자인에 매칭(상단 파란 바, 파란 제목+밑줄, 연회색 카드, 푸터 TMAXSOFT/페이지/©S-Core).
+
+## 이번까지 완료 (산출물은 /mnt/user-data/outputs)
+1. **통합 작업기술서(SoW) v1.1** — `작업기술서_통합_OpenShift_RHEL_v1.1.docx` (10p)
+   OpenShift v1.5 기반 + RHEL 통합. 통합 표지+부문별 절 분리. II.2 SW플랫폼 표. III 작업범위 부문별(OpenShift 20/50/30/10/10 · RHEL 30/70). VII CarePack SLA표+유지보수 상세표+3차 에스컬레이션. VIII 공개망·온라인 미적용+로드맵.
+2. **OS 제안서 삽입 슬라이드 6장(v6)** — `OS섹션_RHEL_제안서삽입용_v6_6장.pptx`
+   ①OS표준화+라이프사이클 ②표준설치+골든이미지 ③보안 베이스라인(CIS 실제값·OpenSCAP·Ansible) ④패치+템플릿 ⑤기술지원+장애대응 ⑥정기점검+적용실적. 전부 실제값·표 고밀도.
+   삽입 위치: 1~4 → 원본 slide 26(게스트 OS) 뒤 (다음=27 엔터프라이즈 보안) / 5~6 → VII 챕터(55~57 영역).
+
+## 다음 작업(우선순위)
+1. ⚠️ **OS 삽입 5~6장 vs 원본 VII(55~57) 중복 해소** — 원본 55~57에 이미 유지보수 체계·장애 등급(SLA)·정기점검·패치 관리 존재. (a) 57 뒤 삽입 / (b) 원본 55~57에 RHEL 병합 중 결정 필요.
+2. 92p 원본에 6장 실제 삽입 + 전체 페이지번호·목차 재산정.
+3. OpenShift SoW v1.6 현행화(기간 2026.01.23~03.17, As-Built 반영), 통합 SoW와 정합성.
+4. 가중치 매핑 — SoW ↔ WBS 7단계.
+5. FA01 전문분야별 분리(Virtualization용·RHEL용).
+
+## 작업 환경
+- 빌드: PPTX=pptxgenjs(/home/claude/prop_work), DOCX=docx-js(/home/claude/sow). 렌더는 soffice.py→pdftoppm로 QA 후 outputs 복사.
+- 소스(텍스트 추출본): 두 SoW(OpenShift v1.5·RHEL v1.3), 락플레이스 유지보수 제안서(신세계·농협), RHEL8 설치가이드, OS파트 제안서, 검수확인서 등 Project 파일에 있음.
+
+→ 먼저 Notion "RHSP 작업중"을 읽고 현재 상태를 확인한 뒤, 위 1번(중복 해소)부터 진행해줘.
