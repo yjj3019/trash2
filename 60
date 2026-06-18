@@ -1,0 +1,82 @@
+========== [1] Thanos PromQL 쿼리 전체 (_query / _query_range / _query_direct) ==========
+aibox:cluster_disk_read_bps
+aibox:cluster_disk_write_bps
+aibox:cluster_net_rx_bps
+aibox:cluster_net_tx_bps
+aibox:netobserv_node_rx_bps
+aibox:netobserv_node_tx_bps
+ALERTS{alertstate=
+count by(instance) (node_cpu_seconds_total{mode=
+count by(instance) (node_network_receive_bytes_total{device!=
+count by(job) (up)
+count by(name,namespace)(kubevirt_vmi_vcpu_seconds_total{state=\
+count by(namespace) (up{namespace!~
+count by(node) (kube_pod_info)
+count by(node) (kubevirt_vmi_info)
+etcd_server_is_leader
+kubelet_volume_stats_capacity_bytes
+kube_node_info
+kube_node_status_allocatable{resource=
+kube_node_status_capacity{resource=
+kube_resourcequota
+kubevirt_vmi_filesystem_used_bytes
+kubevirt_vmi_info
+kubevirt_vmi_migration_succeeded
+min(etcd_server_has_leader)
+sum by(node) (kubevirt_vmi_phase_count{phase=
+sum(kubevirt_vmi_migrations_in_pending_phase)
+sum(kubevirt_vmi_migrations_in_running_phase)
+sum(kubevirt_vmi_migrations_in_scheduling_phase)
+
+========== [2] kube-apiserver 호출 (_api_get) 경로 ==========
+/apis/config.openshift.io/v1/clusteroperators"
+/apis/config.openshift.io/v1/clusterversions/version"
+/apis/kubevirt.io/v1/virtualmachines"
+/apis/machineconfiguration.openshift.io/v1/machineconfigpools"
+/apis/metrics.k8s.io/v1beta1/nodes"
+/apis/route.openshift.io/v1/routes"
+/apis/storage.k8s.io/v1/storageclasses"
+/api/v1/namespaces/openshift-monitoring/configmaps/cluster-monitoring-config"
+/api/v1/nodes"
+/api/v1/persistentvolumeclaims"
+/api/v1/persistentvolumes"
+/version"
+
+========== [3] Recording rule (aibox: 선집계) ==========
+aibox:cluster_disk_read_bps
+aibox:cluster_disk_write_bps
+aibox:cluster_net_rx_bps
+aibox:cluster_net_tx_bps
+aibox:cluster_node_cpu_avg
+aibox:cluster_node_mem_avg
+aibox:cluster_vm_cpu_avg
+aibox:cluster_vm_cpu_p
+aibox:cluster_vm_mem_avg
+aibox:cluster_vm_mem_p
+aibox:netobserv_node_rx_bps
+aibox:netobserv_node_tx_bps
+aibox:pq:
+aibox:q:
+aibox:vm_cpu_usage_pct
+aibox:vm_disk_read_bps
+aibox:vm_disk_write_bps
+aibox:vmi
+aibox:vm_net_rx_bps
+aibox:vm_net_tx_bps
+
+========== [4] 캐시 계층 (TTL/Redis) ==========
+74:POLL_INTERVAL: Final[int]      = 30
+88:SPARKLINE_HOURS: Final[int]    = 1
+880:    _api_cache_ttl: dict = {
+890:        """OCP REST API 직접 호출 (SA 토큰 기반) + 경로별 TTL 캐시.
+893:        ttl = self._api_cache_ttl.get(path, 0)
+1116:        """클러스터 Prometheus 직접 쿼리 (SA 토큰) + 캐시(20s TTL).
+1118:        마이그레이션 등 준실시간 지표라 TTL은 짧게(20s) 유지."""
+1149:                try: _rc.setex(_ck, 20, _j.dumps(result))
+1159:    _query_cache_ttl: float = 40.0  # 40s TTL (FAST 15s × 2.5)
+1203:                r.setex(f"aibox:q:{key}", 40, _j.dumps(value))
+1214:        빈 결과면 같은 쿼리의 직전 유효값(TTL 300s) 반환. 진짜 소멸은 5분 내 반영."""
+1448:                # VMI 정보(node/ip/os) 캐싱: kube-apiserver 개별 호출 최소화 (TTL 120s)
+1449:                # node는 live migration 시 변동 가능 → TTL 만료 시 자동 갱신
+1480:                            _rc.setex(_ck, 120, _j.dumps(_res))
+2598:        # configmap의 enableUserWorkload: true 여부가 본질이며, _api_get은 TTL 캐시 경유로 부하 최소.
