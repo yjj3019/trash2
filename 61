@@ -1,0 +1,208 @@
+[jjyoo@bastion:~/ocp/_deploy_upload]$ echo "╔════════════ 파일 1/2: ARCHITECTURE.md ════════════╗"
+cat ~/ocp/_deploy_upload/ARCHITECTURE.md
+echo ""
+echo "╔════════════ 파일 2/2: README.md ════════════╗"
+cat ~/ocp/_deploy_upload/README.md
+╔════════════ 파일 1/2: ARCHITECTURE.md ════════════╗
+# ARCHITECTURE — 메트릭·API 수집 아키텍처
+
+> AIBox OCP 모니터링 포탈의 데이터 수집 구조 레퍼런스.
+> 신규 기능 설계 시 **Thanos·kube-apiserver 양쪽 부하 영향 평가**용. 소스(`aibox_monitoring_portal.py`)에서 추출.
+
+## 설계 원칙 (최우선)
+
+**데이터 추출 서버 부하 최소화가 1순위.** Thanos/Prometheus뿐 아니라 kube-apiserver도 대상. 신규 기능은 가능하면 Recording Rule + 기존 캐시 재사용으로 **추가 쿼리 0**을 지향한다.
+
+---
+
+## A. 데이터 소스 2종
+
+| 소스 | 프로토콜 | 엔드포인트 | 용도 |
+|---|---|---|---|
+| Thanos Querier | PromQL (HTTP) | thanos-querier-openshift-monitoring.apps.ocp.score | 메트릭 시계열 |
+| kube-apiserver | REST | api.ocp.score:6443 | 리소스 객체(노드/VM/PV/PVC/오퍼레이터) |
+
+인증: 양쪽 모두 SA 토큰(OCP_SA_TOKEN) Bearer.
+
+---
+
+## B. Thanos 수집 — 3개 경로
+
+| 메서드 | 용도 | 캐시 |
+|---|---|---|
+| _query | 일반 instant query | Redis 40s TTL (aibox:q:) + _flicker_guard |
+| _query_range | 시계열(스파크라인) | SPARKLINE_HOURS=1 |
+| _query_direct | 준실시간(VM 마이그레이션 등) | 20s TTL (깜빡임 흡수) |
+
+### 주요 raw 메트릭
+
+- **노드**: node_cpu_seconds_total, node_network_receive_bytes_total, kube_node_info, kube_node_status_allocatable/capacity, kube_pod_info
+- **VM(kubevirt)**: kubevirt_vmi_info, kubevirt_vmi_phase_count, kubevirt_vmi_vcpu_seconds_total, kubevirt_vmi_filesystem_used_bytes, kubevirt_vmi_migrations_in_*, kubevirt_vmi_migration_succeeded
+- **etcd**: etcd_server_is_leader, etcd_server_has_leader, etcd_disk_wal_fsync_duration_seconds_bucket, etcd_network_peer_round_trip_time
+- **apiserver**: apiserver_request_total, apiserver_request_duration_seconds_bucket
+  - 주의: P99 산출 시 verb!~"WATCH|CONNECT|LIST" 필수 — 장기 연결이 60s 버킷 상한으로 클램프됨
+- **storage**: kubelet_volume_stats_capacity_bytes, kube_persistentvolumeclaim_resource_requests_storage_bytes
+- **기타**: count by(job)(up) (job 매핑), ALERTS, kube_resourcequota
+
+---
+
+## C. Recording Rule — Thanos 선집계 (aibox: 프리픽스)
+
+복잡한 rate/sum/quantile을 Prometheus 측에서 선계산 → 폴링 시 단순 조회로 **Thanos 부하 최소화**. 정의: vm-reporter-api.yaml.
+
+- **클러스터 집계**: aibox:cluster_node_cpu_avg, aibox:cluster_node_mem_avg, aibox:cluster_vm_cpu_avg/p95, aibox:cluster_vm_mem_avg/p95
+- **네트워크/디스크**: aibox:cluster_net_rx/tx_bps, aibox:cluster_disk_read/write_bps, aibox:netobserv_node_rx/tx_bps
+- **VM별**: aibox:vm_cpu_usage_pct, aibox:vm_net_rx/tx_bps, aibox:vm_disk_read/write_bps
+
+---
+
+## D. kube-apiserver 수집 (_api_get) — 12경로
+
+### list 조회 (resourceVersion=0, watch 캐시 응답 → etcd quorum read 회피)
+
+- /api/v1/nodes
+- /api/v1/persistentvolumes
+- /api/v1/persistentvolumeclaims
+- /apis/kubevirt.io/v1/virtualmachines
+- /apis/storage.k8s.io/v1/storageclasses
+- /apis/config.openshift.io/v1/clusteroperators
+- /apis/machineconfiguration.openshift.io/v1/machineconfigpools
+- /apis/route.openshift.io/v1/routes
+
+### 단건/특수 (rv=0 미적용)
+
+- /version, /apis/config.openshift.io/v1/clusterversions/version — 버전
+- /apis/metrics.k8s.io/v1beta1/nodes — 메트릭 API (rv 미지원)
+- /api/v1/namespaces/openshift-monitoring/configmaps/cluster-monitoring-config — UWM 판정
+- nodes/{n}/proxy/stats/summary — kubelet proxy
+- /apis/kubevirt.io/v1/namespaces/{ns}/virtualmachineinstances/{name} — VMI 단건, 120s TTL 캐시 (live migration 변동 대응)
+
+---
+
+## E. 캐시 계층
+
+| 계층 | TTL | 비고 |
+|---|---|---|
+| 폴링 주기 | 30s (NORMAL) / 240s (SLOW) | SLOW: storage/operators/mcp/perf_trends/uwm |
+| Redis _query | 40s | aibox:q: (FAST 15s x 2.5) |
+| Redis _query_direct | 20s | 준실시간 지표 |
+| _api_cache_ttl | path별 | _api_get 경로별 TTL dict |
+| VMI 개별조회 | 120s | kube-apiserver 호출 최소화 |
+| _flicker_guard | 300s | 빈결과 → 직전 유효값 |
+
+---
+
+## F. 부하 최소화 장치 종합
+
+1. **Recording rule 선집계** — 복잡 연산을 Prometheus 측에서 선계산
+2. **Redis/인메모리 TTL 캐시** — 중복 호출 제거
+3. **resourceVersion=0** — etcd quorum read 회피 (list 8종)
+4. **VMI 개별조회 120s 캐시 + 배치** — kube-apiserver 호출 절감
+5. **폴링 그룹 분리** — 자주 안 변하는 리소스는 SLOW 240s
+6. **깜빡임 2층 방어** — _query 레벨 재시도 회복 + 산출 레벨 직전값 폴백
+
+---
+
+## 깜빡임 2층 방어 (운영 주의)
+
+이 클러스터 Thanos Querier는 instant query에서 간헐 EMPTY(깜빡임) 발생(실측 ~12%). 대응:
+
+- **1층 (_query)**: _flicker_guard — 빈 결과 시 직전 유효값(TTL 300s) 반환
+- **2층 (산출부)**: EMPTY를 None/0으로 setattr 금지 → 직전값 폴백 (예: _last_svc_health)
+
+신규 산출 코드에서 "EMPTY → None setattr" 패턴 금지. last-value 캐시는 **reference 방식** 또는 if value: 가드 후 저장 (빈 값 재저장 시 직전값 덮어쓰기 버그 — phys 사례).
+
+╔════════════ 파일 2/2: README.md ════════════╗
+# OCP Monitor (AIBox)
+
+OpenShift 4.17 + OpenShift Virtualization 통합 모니터링 포탈.
+대규모 VM 환경에서 **Thanos/Prometheus 추출 서버 부하 최소화**를 최우선 설계 원칙으로 합니다.
+
+## 핵심 특징
+
+- **부하 최소화**: Prometheus-side Recording Rules 사전 집계, Redis 캐싱, 중복 쿼리 제거
+- **스마트 설치 wizard**: 자동 탐지·검증·롤백을 갖춘 대화형 `install.sh`
+- **폐쇄망 지원**: 이미지를 빌드 서버에서 완성하여 tar로 운반, 배포 환경에 pip/레지스트리 불필요
+- **시크릿 비평문화**: 인증정보는 podman secret(암호화)에 저장, `--secret type=env` 주입
+
+## 아키텍처
+
+| 구성 | 내용 |
+|---|---|
+| 수집/API/대시보드 | FastAPI 단일 프로세스 (`aibox_monitoring_portal.py`) |
+| 캐시 | Redis (내부 전용) |
+| 저장 | PostgreSQL (테이블별 차등 Retention, 내부 전용) |
+| 메트릭 소스 | Thanos Querier + Recording Rules (`vm-reporter-api.yaml`) |
+
+> 상세 수집 구조(메트릭·PromQL·API 경로·캐시): [ARCHITECTURE.md](ARCHITECTURE.md)
+| 런타임 | Podman 5.x, 컨테이너 3개 (redis/postgres/portal) |
+
+## 사전 요구사항
+
+- Podman 4.1+ (secret type=env 지원, 권장 5.x)
+- oc CLI (OCP 적용/SA 토큰 자동발급 시)
+- curl, python3, base64
+
+`install.sh`의 preflight 단계가 자동 점검하며, 미충족 시 설치 가이드를 출력합니다.
+
+## 설치
+
+### 온라인 환경 (빌드 서버)
+
+```bash
+git clone https://github.com/yjj3019/ocp-monitor.git
+cd ocp-monitor
+./install.sh
+```
+
+wizard가 환경을 자동 탐지하고(API/Thanos URL), 필요한 값을 입력받아 검증한 뒤 일괄 설치합니다.
+
+### 폐쇄망 배포
+
+빌드 서버(온라인)에서 번들 생성:
+
+```bash
+./build-bundle.sh              # 포털+redis+postgres 이미지 포함 (자급자족)
+./build-bundle.sh --portal-only  # 포털 이미지만
+# → dist/aibox-deploy-<날짜>.tar.gz 생성
+```
+
+폐쇄망으로 tar.gz 운반 후:
+
+```bash
+tar xzf aibox-deploy-<날짜>.tar.gz
+cd aibox-deploy-<날짜>
+./install.sh    # 이미지 자동 load → 빌드 없이 설치
+```
+
+## 주요 스크립트
+
+| 스크립트 | 역할 |
+|---|---|
+| `install.sh` | 통합 설치 wizard (preflight·자동탐지·검증·요약·롤백). `--dry-run`, `--reset` |
+| `build-bundle.sh` | 폐쇄망 배포 번들 빌더 (이미지 save → tar.gz) |
+| `deploy.sh` | 컨테이너 배포 (`--rebuild`, `--apply-ocp`). PORTAL_PORT/BUILD_MODE 지원 |
+| `push.sh` | 시크릿 스캔 가드 git push 자동화 |
+
+## 설정
+
+비시크릿은 `.env`(`container/.env.template` 참고), 시크릿은 podman secret에 저장됩니다.
+
+| 시크릿 (podman secret) | 비시크릿 (.env) |
+|---|---|
+| OCP_SA_TOKEN | OCP_THANOS_URL / OCP_API_URL |
+| POSTGRES_PASSWORD | PORTAL_PORT (충돌 시 변경) |
+| KUBEADMIN_PW (선택) | POSTGRES_DB / USER / HOST |
+| ALERTMANAGER_WEBHOOK (선택) | POLL_INTERVAL, RETAIN_* |
+
+포트: 포털만 호스트 노출(`PORTAL_PORT`, 기본 8000). redis/postgres는 컨테이너 내부 전용이라 호스트 포트 충돌 없음.
+
+## 보안
+
+- 시크릿은 `.env` 평문이 아닌 podman secret(암호화)에 저장, `podman inspect`에 노출되지 않음
+- `push.sh`가 commit 전 시크릿 스캔으로 실수 업로드 차단
+- `id_rsa`, `oauth.yml`, `*token*`, `.env` 등은 `.gitignore`로 제외
+
+## 라이선스 / 운영 메모
+
+내부 운영 도구. 운영 환경(`~/ocp/container/`)과 git 배포본(secret 방식)은 별도 관리됩니다.
